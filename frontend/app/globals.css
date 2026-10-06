@@ -1,0 +1,497 @@
+@import "tailwindcss";
+
+/*
+  WABOGADOS — "instrumento legal".
+
+  The visual language is a court file, not a SaaS dashboard: warm paper, ink,
+  the oxblood of a wax seal and the brass of a notary stamp. Two audiences use
+  it, and the same restraint serves both. A client checking their case should
+  feel they are reading a document their lawyer prepared. Staff handling
+  evidence should feel they are operating an instrument that measures.
+*/
+
+@theme {
+  /* Paper and ink */
+  --color-paper: #f2eee4;
+  --color-paper-deep: #e8e2d4;
+  --color-surface: #fffdf8;
+  --color-surface-sunk: #faf7f0;
+  --color-ink: #191b18;
+  --color-ink-soft: #3d4039;
+  --color-ink-muted: #6f6d62;
+  --color-ink-faint: #9a978a;
+
+  /* Wax seal: authority, destructive action, the accent */
+  --color-wax: #8c2f26;
+  --color-wax-deep: #6d2019;
+  --color-wax-tint: #f6e9e6;
+
+  /* Forest: integrity, verification, anything proven */
+  --color-forest: #2c5545;
+  --color-forest-tint: #e6efe9;
+
+  /* Brass: caution, quarantine, in-between states */
+  --color-brass: #8f6a1c;
+  --color-brass-tint: #f7f0dd;
+
+  /* Rules: the ledger lines */
+  --color-rule: #ded7c6;
+  --color-rule-strong: #c4bba4;
+
+  /* --- Corporate palette, from WABOGADOS_web.html ------------------- */
+
+  /*
+    The public site has its own scale, taken verbatim from the reference HTML:
+    petrol blue, gold and ivory. It is kept apart from the scale above on
+    purpose. The authenticated surface is a document a lawyer works inside —
+    paper, ink, wax — and the public site is a statement the firm makes to
+    someone who has not chosen to trust it yet. They are two voices of the same
+    firm, and flattening them would lose both.
+  */
+  --color-petrol: #132c35;
+  --color-petrol-deep: #10262e;
+  --color-petrol-soft: #20363c;
+  --color-petrol-mid: #314b52;
+  --color-gold: #b28b55;
+  --color-gold-bright: #d4b17a;
+  --color-gold-deep: #a98b5e;
+  --color-ivory: #f7f5f0;
+  --color-ivory-warm: #f2efe7;
+  --color-ivory-line: #ddd9cf;
+  --color-slate: #66767a;
+  --color-stone-line: #a9b0ae;
+
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-plex-sans), Arial, Helvetica, sans-serif;
+  --font-mono: var(--font-plex-mono), monospace;
+
+  --radius-card: 2px;
+
+  /*
+    Paper does not sit on a table, it sits on a desk. Two shadows, both warm and
+    both faint: one for a panel lying on the surface, one for a row being reached
+    for. A third, cooler grey shadow is what makes a card look like a screenshot
+    pasted onto the page.
+  */
+  --shadow-card:
+    0 1px 2px color-mix(in oklab, var(--color-ink) 5%, transparent),
+    0 6px 18px -10px color-mix(in oklab, var(--color-ink) 14%, transparent);
+  --shadow-lift:
+    0 2px 4px color-mix(in oklab, var(--color-ink) 6%, transparent),
+    0 14px 32px -14px color-mix(in oklab, var(--color-ink) 22%, transparent);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv05" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  Paper grain. A single inline SVG turbulence, no network request. It sits
+  behind everything at low opacity so large areas of paper do not read as flat
+  digital fill.
+*/
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/*
+  An overlay portalled onto the body is also a direct child of it, and the rule
+  above would pull it back into the document flow: a full screen panel would end
+  up as a strip wherever the body happened to be. This is the one direct child
+  that is a viewport layer instead of content, so it is put back where a fixed
+  overlay belongs. It has to outrank `body > *` as a rule, not as a utility:
+  this stylesheet is unlayered and Tailwind's utilities are not.
+*/
+body > .viewport-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+/* --- Typography ------------------------------------------------------- */
+
+.font-display {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 0, "WONK" 1, "opsz" 40;
+  letter-spacing: -0.015em;
+}
+
+/* Small caps run-in: the label above a value, like a field on a form. */
+.label-rule {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* --- Ledger rules ----------------------------------------------------- */
+
+/*
+  Tables use ruled lines the way an accounting ledger does: a strong rule under
+  the header, hairlines between rows, and no zebra fill. A zebra fill fights
+  the paper and makes a legal record look like a spreadsheet.
+*/
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ledger thead th {
+  border-bottom: 2px solid var(--color-rule-strong);
+  border-top: 1px solid var(--color-rule);
+  padding-block: 0.7rem;
+  background-color: var(--color-surface-sunk);
+  text-align: left;
+  vertical-align: bottom;
+}
+
+.ledger thead th:first-child {
+  box-shadow: none;
+}
+
+/*
+  A column whose header says "Acciones" and whose cells hold right-aligned buttons
+  needs the header right-aligned too, and `text-right` on the `<th>` never did it.
+
+  The reason is the same one that has bitten this stylesheet twice: `globals.css`
+  is unlayered and Tailwind's utilities live in `@layer utilities`, so
+  `.ledger thead th` — which sets `text-align: left` — wins over `.text-right`
+  whatever the order. Seven listings asked for it and none got it. Restating the
+  alignment here costs one rule and fixes every one of them; the alternative, a
+  utility that cannot beat the sheet, is a lie the markup tells.
+*/
+.ledger thead th.text-right {
+  text-align: right;
+}
+
+.ledger thead th.text-center {
+  text-align: center;
+}
+
+/*
+  A row header is still a `th`, and the browser's own stylesheet centres every
+  `th` it finds. The header row is corrected by the rule above, but a `<th
+  scope="row">` inside the body was left centred, so the key of a setting or the
+  name of a client floated in the middle of its column and stopped lining up with
+  the header above it. Narrow columns hid it; a column wide enough for a
+  description showed it immediately.
+*/
+.ledger tbody th {
+  text-align: left;
+}
+
+.ledger tbody tr {
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.ledger tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.ledger tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.ledger tbody tr:hover {
+  background-color: color-mix(in oklab, var(--color-surface-sunk) 70%, transparent);
+}
+
+/* --- Ledger, row level ------------------------------------------------ */
+
+/*
+  A rule down the left edge of the row, coloured by what the row *is*.
+
+  A hairline between rows tells you they are separate; it does not tell you which
+  ones need you. On a list of two dozen cases, finding the four urgent ones and
+  the three that closed last week without reading a single word is the whole
+  point of the screen, and it costs one attribute and one gradient.
+
+  It is a background-image and not an inset box-shadow because the table is
+  `border-collapse: collapse`, and a collapsed table is exactly where a cell box
+  shadow stops being painted: the computed style says the shadow is there and the
+  screen shows nothing, which is the most expensive kind of bug to look for.
+*/
+.ledger tbody tr > :first-child {
+  background-repeat: no-repeat;
+  background-size: 3px 100%;
+  background-image: linear-gradient(to right, transparent 0 3px);
+  transition: background-image 160ms ease;
+}
+
+.ledger tbody tr[data-accent="live"] > :first-child {
+  background-image: linear-gradient(to right, var(--color-forest) 0 3px);
+}
+
+.ledger tbody tr[data-accent="held"] > :first-child {
+  background-image: linear-gradient(to right, var(--color-brass) 0 3px);
+}
+
+.ledger tbody tr[data-accent="urgent"] > :first-child {
+  background-image: linear-gradient(to right, var(--color-wax) 0 3px);
+}
+
+.ledger tbody tr[data-accent="closed"] > :first-child {
+  background-image: linear-gradient(to right, var(--color-rule-strong) 0 3px);
+}
+
+/*
+  The line inside a cell, and the fact under it.
+
+  These two are not scoped to `.ledger` on purpose: the same pair reads the same
+  way in a table row and in the dashboard's file list, and a type style that only
+  exists inside one component is a rule waiting to be forgotten in the other.
+*/
+.row-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.006em;
+  color: var(--color-ink);
+}
+
+.row-title:hover {
+  color: var(--color-wax-deep);
+}
+
+/* A reference: a file number, a card number, a date. Never wraps mid-token. */
+.row-meta {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: var(--color-ink-faint);
+  white-space: nowrap;
+}
+
+/* A shared visual grammar for row operations: icon, verb, then consequence. */
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.row-action-link {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-card);
+  padding: 0.4rem 0.65rem;
+  color: var(--color-wax-deep);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.row-action-link:hover {
+  border-color: color-mix(in oklab, var(--color-wax) 28%, transparent);
+  background-color: var(--color-wax-tint);
+  color: var(--color-wax);
+}
+
+.agenda-nav-button,
+.agenda-nav-today {
+  display: inline-grid;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  place-items: center;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+}
+
+.agenda-nav-today {
+  padding-inline: 0.9rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.agenda-nav-button:hover,
+.agenda-nav-today:hover {
+  border-color: var(--color-wax);
+  background: var(--color-wax-tint);
+  color: var(--color-wax-deep);
+}
+
+.agenda-entry {
+  background-image: linear-gradient(to right, var(--color-rule-strong) 0 3px, transparent 3px);
+  background-repeat: no-repeat;
+  transition: background-color 140ms ease;
+}
+
+.agenda-entry:hover {
+  background-color: color-mix(in oklab, var(--color-surface-sunk) 70%, transparent);
+}
+
+/* --- Motion ----------------------------------------------------------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes rule-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.35) rotate(-8deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.96) rotate(1.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-2deg);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-forest) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+
+.rise {
+  animation: rise 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.draw-rule {
+  transform-origin: left;
+  animation: rule-draw 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stamp {
+  animation: stamp 420ms cubic-bezier(0.34, 1.3, 0.5, 1) both;
+}
+
+.live-dot {
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+/*
+  Rows arrive in sequence. Twelve milliseconds apart, capped at the first eight
+  rows: enough that the list reads as a stack of paper being set down rather than
+  a table that blinked into existence, and not enough that the tenth row of a long
+  list feels late. The cap matters — a stagger that scales with row count turns a
+  data table into a wait.
+*/
+.ledger tbody tr.row-enter {
+  animation: row-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .draw-rule,
+  .stamp,
+  .live-dot,
+  .ledger tbody tr.row-enter {
+    animation: none;
+  }
+  * {
+    transition-duration: 1ms !important;
+  }
+}
+
+/* --- Focus ------------------------------------------------------------ */
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-wax);
+  outline-offset: 2px;
+}
+
+/* --- Scrollbars ------------------------------------------------------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rule-strong) transparent;
+}
+
+/*
+  Native file input is replaced by a label overlay, so the control stays focusable
+  and the drop zone is the visible affordance.
+*/
+.dropzone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 2px dashed transparent;
+  border-radius: inherit;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.dropzone[data-dragging="true"]::after {
+  border-color: var(--color-wax);
+  background-color: color-mix(in oklab, var(--color-wax-tint) 55%, transparent);
+}

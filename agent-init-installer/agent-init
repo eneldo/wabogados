@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="1.0.0"
+SHARE_DIR="${AGENT_INIT_SHARE_DIR:-$HOME/.local/share/agent-init}"
+DRY_RUN=0
+FORCE=0
+TARGET=""
+
+usage() {
+  cat <<'EOF'
+agent-init — Inicializa memoria persistente multi-IA en un proyecto.
+
+Uso:
+  agent-init
+  agent-init /ruta/al/proyecto
+  agent-init --dry-run
+  agent-init --check
+  agent-init --version
+
+Opciones:
+  --dry-run     Muestra qué haría sin modificar el proyecto.
+  --force       Reemplaza MASTER_AGENT.md y scripts administrados por agent-init.
+  --check       Verifica AGENTS.md, CLAUDE.md y GEMINI.md.
+  --version     Muestra la versión.
+  -h, --help    Ayuda.
+
+Por defecto usa el directorio actual como proyecto.
+EOF
+}
+
+CHECK=0
+while (($#)); do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    --force) FORCE=1 ;;
+    --check) CHECK=1 ;;
+    --version) echo "agent-init $VERSION"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "[ERROR] Opción desconocida: $1" >&2
+      usage
+      exit 2
+      ;;
+    *)
+      if [[ -n "$TARGET" ]]; then
+        echo "[ERROR] Solo se admite una ruta de proyecto." >&2
+        exit 2
+      fi
+      TARGET="$1"
+      ;;
+  esac
+  shift
+done
+
+TARGET="${TARGET:-$PWD}"
+TARGET="$(cd "$TARGET" && pwd)"
+
+if [[ ! -d "$SHARE_DIR" ]]; then
+  echo "[ERROR] No existe la plantilla global: $SHARE_DIR" >&2
+  echo "Reinstala agent-init." >&2
+  exit 2
+fi
+
+if ((CHECK)); then
+  if [[ ! -f "$TARGET/execution/sync_agent_files.py" ]]; then
+    echo "[ERROR] Este proyecto todavía no tiene agent-init instalado." >&2
+    exit 2
+  fi
+  cd "$TARGET"
+  exec python3 execution/sync_agent_files.py --check --hashes
+fi
+
+echo
+echo "=============================================="
+echo " agent-init $VERSION"
+echo "=============================================="
+echo "Proyecto: $TARGET"
+echo
+
+if ((DRY_RUN)); then
+  echo "[DRY-RUN] No se realizarán cambios."
+  echo
+fi
+
+mkdir_cmd() {
+  local dir="$1"
+  if [[ -d "$dir" ]]; then
+    echo "[OK]      ${dir#$TARGET/}/"
+  else
+    echo "[CREATE]  ${dir#$TARGET/}/"
+    ((DRY_RUN)) || mkdir -p "$dir"
+  fi
+}
+
+copy_managed() {
+  local src="$1"
+  local dst="$2"
+  if [[ -e "$dst" && $FORCE -eq 0 ]]; then
+    echo "[KEEP]    ${dst#$TARGET/}"
+    return
+  fi
+  echo "[$([[ -e "$dst" ]] && echo UPDATE || echo CREATE)] ${dst#$TARGET/}"
+  if (( ! DRY_RUN )); then
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    chmod +x "$dst" 2>/dev/null || true
+  fi
+}
+
+mkdir_cmd "$TARGET/execution"
+mkdir_cmd "$TARGET/.agent"
+
+copy_managed "$SHARE_DIR/bootstrap_agent.py" "$TARGET/execution/bootstrap_agent.py"
+copy_managed "$SHARE_DIR/sync_agent_files.py" "$TARGET/execution/sync_agent_files.py"
+copy_managed "$SHARE_DIR/MASTER_AGENT.md" "$TARGET/.agent/MASTER_AGENT.md"
+
+if ((DRY_RUN)); then
+  cd "$TARGET"
+  python3 "$SHARE_DIR/bootstrap_agent.py" --dry-run
+  echo
+  echo "[DRY-RUN] Finalizado."
+  exit 0
+fi
+
+cd "$TARGET"
+python3 execution/bootstrap_agent.py
+
+# MASTER_AGENT.md ya fue instalado arriba. Sincronizar los tres archivos.
+python3 execution/sync_agent_files.py
+
+echo
+echo "=== Verificación final ==="
+python3 execution/sync_agent_files.py --check
+
+echo
+echo "=============================================="
+echo " agent-init completado correctamente"
+echo "=============================================="
+echo
+echo "Archivos principales:"
+echo "  .agent/MASTER_AGENT.md"
+echo "  AGENTS.md"
+echo "  CLAUDE.md"
+echo "  GEMINI.md"
+echo "  memory/"
+echo "  directives/"
+echo "  execution/"
+echo
+echo "Siguiente instrucción recomendada para tu IA:"
+echo
+echo '  "Analiza este proyecto e inicializa su memoria persistente basándote'
+echo '   únicamente en evidencia real del repositorio. No modifiques funcionalidad todavía."'
+echo

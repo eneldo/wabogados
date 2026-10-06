@@ -1,0 +1,46 @@
+services:
+  test:
+    build:
+      context: ./backend
+      target: builder
+    environment:
+      APP_ENVIRONMENT: test
+      DATABASE_URL: postgresql+asyncpg://wabogados:local-development-only@postgres-test:5432/wabogados_test
+      # Do NOT override PATH here. Compose expands ${PATH} on the host, and on
+      # Windows that value is not a POSIX PATH, so it replaces the container PATH
+      # and hides /usr/bin, breaking pg_dump. The image ENV already puts the
+      # virtualenv first.
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    command: /opt/venv/bin/python -c "import subprocess; subprocess.run(['pip', 'install', '-e', '.[dev]'], check=True); subprocess.run(['alembic', 'upgrade', 'head'], check=True); subprocess.run(['python', '-m', 'pytest', 'app/tests/', '-v'], check=True)"
+    volumes:
+      - ./backend:/build
+
+  # The rate limiter store talks to a real server on purpose: a double does not
+  # execute the Lua script, does not expire keys and does not fail when the
+  # server is gone, which are the three behaviours under test.
+  redis-test:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres-test:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: wabogados_test
+      POSTGRES_USER: wabogados
+      POSTGRES_PASSWORD: local-development-only
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wabogados -d wabogados_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

@@ -1,0 +1,298 @@
+/*
+  Public site styles.
+
+  Reference: `WABOGADOS_web.html`. Its composition, the order of the sections
+  and the corporate palette are kept. Tailwind utilities carry the layout; this
+  file holds what they do not say well.
+
+  RECOVERED 2026-10-02. This file was truncated to 24 lines by a bad edit while
+  replacing the `.wrap` ladder, and rebuilt from the compiled stylesheet of the
+  last successful build. Every rule survived; the commentary did not, and the
+  notes below were rewritten from the decisions they explain. Rules stay
+  minified-flat because that is what the recovery produced - run a formatter
+  before editing this by hand.
+
+--- One measure, that grows with the window --------------------------
+  `width: 100%; max-width: 1560px`. A hard 1200px cap is right at 1440 and wrong
+  at 1900: the colour bands reach the edge but the content stays a 1200px ribbon
+  floating in empty ivory, and a page that looks like it does not fill its own
+  window reads as unfinished even when nothing overflows. Grow the container, not
+  the text: paragraphs keep their `ch` limits and stay readable, and it is the
+  grids that get the room.
+
+  An earlier attempt wrote this as `min(1560px, 100% - 4rem)`. The subtraction is
+  harmless on a desktop and wrong on a phone, where it took 64px out of a 320px
+  screen on top of the padding and left 206px of content. `margin-inline: auto`
+  already supplies the breathing room; the padding supplies the rest.
+
+  This replaced five tiers (1200 / 1380 / 1560 / 2000 / 2360) plus a second set of
+  overrides that scaled the type up above 2200px. Both were my own additions and
+  both made the page worse - the type stopped belonging to the composition and the
+  layout became a series of jumps. A measure that grows and then stops is easier
+  to reason about than a breakpoint per screen size.
+
+  --- Never write this file with a byte order mark -----------------------
+  A UTF-8 BOM at the head of the file makes the CSS parser read
+  `BOM + first comment + first selector` as ONE selector, so the first rule is
+  silently dropped and the minifier emits a stray `?` in front of it. It cost the
+  `.wrap` rule entirely, and the symptom was invisible: no error, no warning,
+  and the page simply stopped being constrained. Write it as UTF-8 without BOM.
+
+  --- The canvas layer -------------------------------------------------------
+  The public site and the authenticated surfaces share `globals.css`, where
+  `body` carries the private app's paper tone (#f2eee4). On a wide viewport that
+  tone shows on both sides of the content measure and the ivory sits on top of
+  it, which reads as a seam running down the page. A fixed layer behind the
+  content solves it: the whole canvas is ivory, at every width, and for as long
+  as the page scrolls. It is mounted only on the public home page - on /login,
+  /estado and the portal the paper IS the signal that this is not the public site.
+
+  --- The header earns its 90px by giving way --------------------------------
+  Past the first screen it drops to 66px and takes a shadow. A fixed 90px bar is
+  a permanent tax on the reader. It also marks the section being read in gold and
+  carries a 2px reading-progress bar. All three values are read in one
+  requestAnimationFrame on a passive scroll listener: three listeners would mean
+  three layout reads per frame.
+
+  --- The first card opens the composition -----------------------------------
+  Seven practice areas in four columns is 4 + 3, and in two columns 2+2+2+1; both
+  leave a hole at the end of the last row that reads as an oversight. The first
+  area spans the full row from `sm` and sits on petrol, so the seven close in two
+  rows and the area the firm leads with carries the weight.
+
+  --- `backdrop-filter` creates a containing block -----------------------------
+  The mobile menu's scrim is a SIBLING of the header, not a child. An element with
+  a filter becomes the containing block for its `position: fixed` descendants, so
+  nested inside the header the scrim's `inset: 0` resolved against the 91px-tall
+  header instead of the viewport: it covered a band, sat behind, and never
+  received the tap.
+
+  --- The motion contract ----------------------------------------------------
+  Everything moves: the header condenses, the bar advances, the hero drifts and
+  parallaxes, the portraits gain colour, the cards lift. Under
+  `prefers-reduced-motion: reduce` none of it happens and nothing is left hidden -
+  the reveals are CSS keyed on `html.js`, so with motion reduced they simply
+  start visible.
+*/
+.wrap{
+width:100%;max-width:1560px;margin-inline:auto;padding-inline:32px}
+@media (max-width:640px){
+.wrap{
+padding-inline:20px}
+}
+:focus-visible{
+outline:2px solid var(--color-gold);outline-offset:3px;border-radius:1px}
+.on-petrol :focus-visible,.site-band :focus-visible,.site-modal :focus-visible{
+outline-color:var(--color-gold-bright)}
+html{
+scroll-behavior:smooth;scroll-padding-top:100px}
+@media (prefers-reduced-motion:reduce){
+html{
+scroll-behavior:auto}
+}
+.site-canvas{
+z-index:-1;background:var(--color-ivory);pointer-events:none;position:fixed;inset:0}
+.brand-word{
+font-family:var(--font-display);letter-spacing:.04em;font-size:25px;font-weight:700;line-height:1}
+.brand-word em{
+color:var(--color-gold);font-style:normal}
+.brand-word small{
+font-family:var(--font-sans);letter-spacing:.36em;color:var(--color-petrol-soft);margin-top:7px;font-size:9px;font-weight:500;display:block}
+.site-header{
+z-index:40;background:color-mix(in srgb, var(--color-ivory) 88%, transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--color-ivory-line);transition:background-color .26s,box-shadow .26s;position:sticky;top:0}
+.site-header[data-condensed=true]{
+background:color-mix(in srgb, var(--color-ivory) 96%, transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 10px 30px -24px #132c358c}
+.site-header[data-condensed=true] .site-nav{
+height:66px}
+.site-header[data-condensed=true] .brand-word{
+font-size:22px}
+.site-progress{
+background:var(--color-gold);height:2px;transform:scaleX(var(--site-progress,0));transform-origin:0;transition:transform 90ms linear;position:absolute;inset:auto 0 -1px}
+.site-nav-links>a[data-active=true]{
+color:var(--color-gold-deep)}
+.site-nav-links>a[data-active=true]:after{
+content:"";background:var(--color-gold);height:1px;position:absolute;bottom:-9px;left:0;right:0}
+.site-nav{
+justify-content:space-between;align-items:center;gap:24px;height:90px;display:flex}
+.site-nav-links{
+align-items:center;gap:26px;font-size:13px;display:flex}
+.site-nav-links>a:not(.site-btn){
+color:var(--color-petrol-soft);transition:color .15s;position:relative}
+.site-nav-links>a:not(.site-btn):hover{
+color:var(--color-gold)}
+.site-nav-links>a:not(.site-btn)[data-active=true]:hover{
+color:var(--color-gold-deep)}
+.site-btn{
+background:var(--color-petrol);border:1px solid var(--color-petrol);color:#fff;letter-spacing:.01em;justify-content:center;align-items:center;gap:18px;padding:16px 23px;font-size:13px;font-weight:500;transition:background-color .16s,border-color .16s,transform .16s;display:inline-flex}
+.site-btn:hover{
+background:var(--color-petrol-mid);border-color:var(--color-petrol-mid)}
+.site-btn:active{
+transform:translateY(1px)}
+.site-btn.gold{
+background:var(--color-gold);border-color:var(--color-gold)}
+.site-btn.gold:hover{
+background:var(--color-gold-deep);border-color:var(--color-gold-deep)}
+.site-btn.line{
+color:var(--color-petrol-soft);border-color:var(--color-stone-line);background:0 0}
+.site-btn.line:hover{
+border-color:var(--color-gold);color:var(--color-gold)}
+.site-input{
+border:0;border-bottom:1px solid var(--color-stone-line);width:100%;color:var(--color-petrol-soft);background:0 0;outline:none;padding:10px 2px;font-size:15px;transition:border-color .15s}
+.site-input::placeholder{
+color:color-mix(in srgb, var(--color-slate) 62%, transparent)}
+.site-input:focus{
+border-bottom-color:var(--color-gold)}
+select.site-input{
+cursor:pointer}
+.site-eyebrow{
+letter-spacing:.25em;text-transform:uppercase;color:var(--color-gold);white-space:nowrap;align-items:center;gap:12px;font-size:clamp(9.5px,.8vw,10px);font-weight:700;display:flex}
+.site-eyebrow:before{
+content:"";background:var(--color-gold);flex:none;width:clamp(20px,2.4vw,28px);height:1px;display:inline-block}
+.site-display{
+font-family:var(--font-display);letter-spacing:-.028em;color:var(--color-petrol-soft);text-wrap:balance;font-weight:400;line-height:1.06}
+.site-display em{
+color:var(--color-gold);font-style:normal}
+.site-hero-title{
+letter-spacing:-.035em;font-size:clamp(2.45rem,1.15rem + 5.6vw,4.05rem);line-height:1.03}
+.site-section-title{
+font-size:clamp(1.95rem,1.2rem + 3.1vw,3rem);line-height:1.1}
+.site-body{
+color:var(--color-slate);text-wrap:pretty;font-size:clamp(.95rem,.9rem + .2vw,1.05rem);line-height:1.75}
+.site-body-sm{
+color:var(--color-slate);text-wrap:pretty;font-size:.9rem;line-height:1.7}
+.site-section{
+padding-block:clamp(64px,7.5vw,118px)}
+@keyframes site-reveal{
+0%{
+opacity:0;transform:translateY(16px)}
+to{
+opacity:1;transform:none}
+}
+@keyframes site-rule-draw{
+0%{
+transform:scaleX(0)}
+to{
+transform:scaleX(1)}
+}
+.js .site-reveal{
+opacity:0}
+.js .site-reveal.is-in{
+animation:.72s cubic-bezier(.22,1,.36,1) forwards site-reveal;animation-delay:var(--site-delay,0s)}
+.js .site-draw{
+transform:scaleX(0)}
+.site-draw{
+background:linear-gradient(90deg, var(--color-gold) 0%, var(--color-gold) 22%, var(--color-ivory-line) 22%, var(--color-ivory-line) 100%);transform-origin:0;height:1px}
+.js .site-draw.is-in{
+animation:1.1s cubic-bezier(.22,1,.36,1) forwards site-rule-draw;animation-delay:var(--site-delay,0s)}
+@media (prefers-reduced-motion:reduce){
+.js .site-reveal,.js .site-draw{
+opacity:1;animation:none;transform:none}
+*,:before,:after{
+transition-duration:1ms!important;animation-duration:1ms!important;animation-iteration-count:1!important}
+}
+.site-band{
+background:var(--color-petrol);color:var(--color-ivory)}
+.site-band .site-eyebrow{
+color:var(--color-gold-bright)}
+.site-band .site-display{
+color:var(--color-ivory)}
+.site-band .site-body{
+color:color-mix(in srgb, var(--color-ivory) 72%, transparent)}
+.service-card{
+padding-top:26px;transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s;position:relative}
+.service-card:before{
+content:"";background:var(--color-ivory-line);height:1px;transition:background-color .22s,height .22s;position:absolute;inset:0 0 auto}
+.service-card:hover{
+transform:translateY(-3px)}
+.service-card:hover:before,.service-card:focus-within:before{
+background:var(--color-gold);height:2px}
+.service-glyph{
+border:1px solid var(--color-gold);width:46px;height:46px;color:var(--color-gold);place-items:center;font-size:19px;transition:background-color .22s,color .22s;display:grid}
+.service-card:hover .service-glyph,.service-card:focus-within .service-glyph{
+background:var(--color-gold);color:var(--color-ivory)}
+.service-card--lead{
+background:var(--color-petrol);color:var(--color-ivory);margin-top:-26px;padding:34px 34px 30px;box-shadow:0 34px 60px -50px #132c35bf}
+.service-card--lead:before{
+background:var(--color-gold);height:2px}
+.service-card--lead .site-display,.service-card--lead h3{
+color:var(--color-ivory)}
+.service-card--lead .service-glyph{
+border-color:var(--color-gold);width:58px;height:58px;font-size:24px}
+.service-card--lead .site-body-sm,.service-card--lead .service-link{
+color:color-mix(in srgb, var(--color-ivory) 78%, transparent)}
+.service-card--lead .service-link{
+color:var(--color-gold-bright)}
+.service-card--lead:hover{
+transform:translateY(-4px)}
+@media (max-width:1023px){
+.service-card--lead{
+margin-top:0;padding:26px}
+}
+.service-link{
+color:var(--color-petrol-soft);font-size:.875rem;display:inline-block;position:relative}
+.service-link:after{
+content:"";background:var(--color-gold);transform-origin:0;height:1px;transition:transform .26s cubic-bezier(.22,1,.36,1);position:absolute;bottom:-3px;left:0;right:0;transform:scaleX(0)}
+.service-link:hover:after,.service-link:focus-visible:after{
+transform:scaleX(1)}
+.trust-item{
+border-left:1px solid color-mix(in srgb, var(--color-gold) 40%, transparent);padding-left:18px}
+.portrait{
+aspect-ratio:3/4;background:var(--color-ivory-warm);border:1px solid var(--color-ivory-line);position:relative;overflow:hidden}
+.portrait-img{
+object-fit:cover;filter:grayscale()contrast(1.04);width:100%;height:100%;transition:filter .32s cubic-bezier(.22,1,.36,1),transform .52s cubic-bezier(.22,1,.36,1)}
+.portrait:hover .portrait-img,.portrait:focus-within .portrait-img{
+filter:grayscale(0)contrast();transform:scale(1.03)}
+@media (prefers-reduced-motion:reduce){
+.portrait-img{
+transition:filter .2s}
+.portrait:hover .portrait-img,.portrait:focus-within .portrait-img{
+transform:none}
+}
+.ally-mark{
+background:var(--color-ivory);border:1px solid var(--color-ivory-line);justify-content:center;align-items:center;height:clamp(200px,22vw,250px);padding:24px;display:flex}
+.ally-mark-img{
+object-fit:contain;mix-blend-mode:multiply;width:auto;max-width:100%;height:auto;max-height:100%}
+.hero-art{
+will-change:transform;transform:translate3d(0, var(--site-parallax,0px), 0);transition:transform .12s linear;animation:9s ease-in-out infinite hero-float;position:relative}
+@keyframes hero-float{
+0%,to{
+margin-top:0}
+50%{
+margin-top:-12px}
+}
+.hero-art:after{
+content:"";filter:blur(6px);pointer-events:none;background:radial-gradient(#132c3538 0%,#0000 70%);height:42px;position:absolute;inset:auto 6% -18px}
+@media (prefers-reduced-motion:reduce){
+.hero-art{
+animation:none!important;transform:none!important}
+.site-progress,.site-header,.site-header[data-condensed=true] .brand-word,.service-card,.service-card--lead,.portrait-img,.ally-mark-img{
+transition:none}
+.portrait:hover .portrait-img,.portrait:focus-within .portrait-img,.service-card:hover,.service-card--lead:hover{
+transform:none}
+}
+.site-note{
+color:var(--color-slate);border-left:2px solid var(--color-gold);padding-left:14px;font-size:12.5px;line-height:1.7}
+.pending-tag{
+letter-spacing:.16em;text-transform:uppercase;color:var(--color-gold-deep);border:1px solid color-mix(in srgb, var(--color-gold) 45%, transparent);align-items:center;gap:6px;padding:3px 9px;font-size:10px;font-weight:700;display:inline-flex}
+.site-modal{
+border:1px solid var(--color-ivory-line);background:var(--color-ivory);color:var(--color-petrol-soft);width:calc(100% - 32px);max-width:640px;padding:34px}
+.site-modal::backdrop{
+-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);background:#132c3573}
+@media (max-width:900px){
+.site-nav-links{
+background:var(--color-ivory);border-bottom:1px solid var(--color-ivory-line);opacity:0;visibility:hidden;flex-direction:column;align-items:stretch;gap:0;max-height:calc(100dvh - 90px);padding:8px 32px 24px;transition:opacity .18s,transform .18s,visibility .18s;position:fixed;inset:90px 0 auto;overflow-y:auto;transform:translateY(-8px)}
+.site-nav-links[data-open=true]{
+opacity:1;visibility:visible;transform:none}
+.site-nav-links>a:not(.site-btn){
+border-bottom:1px solid var(--color-ivory-warm);padding-block:13px;font-size:15px}
+.site-nav-links .site-btn{
+margin-top:18px}
+.site-menu-scrim{
+z-index:39;opacity:0;visibility:hidden;background:#132c3573;border:0;padding:0;transition:opacity .2s,visibility .2s;display:block;position:fixed;inset:0}
+.site-menu-scrim[data-open=true]{
+opacity:1;visibility:visible}
+}
+@media (min-width:901px){
+.site-menu-scrim{
+display:none}
+}

@@ -1,0 +1,190 @@
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-wabogados}
+      POSTGRES_USER: ${POSTGRES_USER:-wabogados}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-development-only}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-wabogados}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-local-development-only}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  # Off site backup target. In this compose file it is a second service on the
+  # same host, which does NOT protect against a host level failure: it exists so
+  # the off site mechanism is exercised end to end. A real deployment points
+  # BACKUP_REMOTE_* at a different machine or provider.
+  minio-backup:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${BACKUP_REMOTE_ACCESS_KEY:-backup-user}
+      MINIO_ROOT_PASSWORD: ${BACKUP_REMOTE_SECRET_KEY:-local-development-only}
+    volumes:
+      - minio_backup_data:/data
+    ports:
+      - "${MINIO_BACKUP_PORT:-9100}:9000"
+      - "${MINIO_BACKUP_CONSOLE_PORT:-9101}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  # Shared counter store for the rate limiter (ADR-008). Without it every API
+  # worker keeps its own count, so the effective budget is `limit * workers` and
+  # a restart hands everyone a fresh one. No persistence on purpose: these are
+  # request timestamps, not data, and an empty store after a restart is the
+  # correct state rather than a loss.
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-wabogados}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-wabogados}
+      STORAGE_ROOT: /var/lib/wabogados/storage
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-20971520}
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-wabogados}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-local-development-only}
+      S3_BUCKET: ${S3_BUCKET:-wabogados-documents}
+      S3_ADDRESSING_STYLE: ${S3_ADDRESSING_STYLE:-path}
+      S3_USE_SSL: ${S3_USE_SSL:-false}
+      S3_CREATE_BUCKET: ${S3_CREATE_BUCKET:-true}
+      RETENTION_HOT_DAYS: ${RETENTION_HOT_DAYS:-90}
+      RETENTION_TIERING_ENABLED: ${RETENTION_TIERING_ENABLED:-true}
+      # Shared rate limiter counter. Empty means the in-process store, which is
+      # only correct while a single API process serves every request.
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      # Off site backup. The endpoint must be reachable and MUST NOT be the same
+      # server as the documents, otherwise a backup and its data die together.
+      BACKUP_REMOTE_ENABLED: ${BACKUP_REMOTE_ENABLED:-false}
+      BACKUP_REMOTE_ENDPOINT: ${BACKUP_REMOTE_ENDPOINT:-http://minio-backup:9000}
+      BACKUP_REMOTE_ACCESS_KEY: ${BACKUP_REMOTE_ACCESS_KEY:-backup-user}
+      BACKUP_REMOTE_SECRET_KEY: ${BACKUP_REMOTE_SECRET_KEY:-local-development-only}
+      BACKUP_REMOTE_BUCKET: ${BACKUP_REMOTE_BUCKET:-wabogados-backups}
+      BACKUP_REMOTE_PREFIX: ${BACKUP_REMOTE_PREFIX:-wabogados}
+      BACKUP_REMOTE_VERIFY_UPLOAD: ${BACKUP_REMOTE_VERIFY_UPLOAD:-true}
+      BACKUP_REMOTE_KEEP: ${BACKUP_REMOTE_KEEP:-90}
+    volumes:
+      - storage_data:/var/lib/wabogados/storage
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  evidence-worker:
+    build:
+      context: ./backend
+    command:
+      - python
+      - -m
+      - app.cli.evidence_worker
+      - --loop
+      - --interval
+      - "30"
+      - --limit
+      - "10"
+      - --worker
+      - docker-evidence-worker
+    environment:
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-wabogados}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-wabogados}
+      STORAGE_ROOT: /var/lib/wabogados/storage
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-wabogados}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-local-development-only}
+      S3_BUCKET: ${S3_BUCKET:-wabogados-documents}
+      S3_ADDRESSING_STYLE: ${S3_ADDRESSING_STYLE:-path}
+      S3_USE_SSL: ${S3_USE_SSL:-false}
+    volumes:
+      - storage_data:/var/lib/wabogados/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      API_INTERNAL_URL: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  postgres_data:
+  storage_data:
+  minio_data:
+  minio_backup_data:

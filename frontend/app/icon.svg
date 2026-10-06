@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="WABOGADOS">
+  <!--
+    The firm has no institutional logo; its header is typographic. A favicon
+    cannot be a wordmark at 16px, so this is the one thing that still reads at
+    that size: the gold W of the wordmark on the petrol ground, both taken from
+    the corporate palette rather than invented.
+  -->
+  <rect width="64" height="64" fill="#132c35"/>
+  <path d="M10 20 L21 46 L27.5 46 L32 33 L36.5 46 L43 46 L54 20 L44.5 20 L38 38.5 L34 26.5 L30 38.5 L23.5 20 Z" fill="#b28b55"/>
+</svg>

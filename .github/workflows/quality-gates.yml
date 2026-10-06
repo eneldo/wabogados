@@ -1,0 +1,104 @@
+name: quality-gates
+
+# The six gates of MASTER_PROMPT section 41, run on every push.
+#
+# The suite needs PostgreSQL, so the job builds the same Docker stack used
+# locally instead of installing a database by hand. Running the gates inside
+# `compose.test.yaml` is what keeps CI and local behaviour identical: a test
+# that passes on a laptop and fails in CI is worse than no test.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Secrets scan
+        # MASTER_PROMPT section 48 forbids hardcoded secrets. A committed
+        # credential is found here rather than in a production incident.
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start PostgreSQL
+        run: |
+          docker compose -f compose.test.yaml up -d --wait postgres-test
+
+      - name: Gate 1 and 3 — lint and types
+        run: |
+          docker compose -f compose.test.yaml run --rm --entrypoint /bin/sh test -c "
+            pip install -q -e '.[dev]' >/dev/null 2>&1 &&
+            python -m ruff check . &&
+            python -m mypy .
+          "
+
+      - name: Gate 2 — migrations reversible
+        run: |
+          docker compose -f compose.test.yaml run --rm --entrypoint /bin/sh test -c "
+            pip install -q -e '.[dev]' >/dev/null 2>&1 &&
+            alembic upgrade head &&
+            alembic downgrade -1 &&
+            alembic upgrade head
+          "
+
+      - name: Gate 4 — tests and coverage
+        run: |
+          docker compose -f compose.test.yaml run --rm --entrypoint /bin/sh test -c "
+            pip install -q -e '.[dev]' >/dev/null 2>&1 &&
+            alembic upgrade head &&
+            python -m pytest app/tests/ -q --cov-report=html
+          "
+
+      - name: Docker image builds
+        run: docker compose build backend
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/htmlcov/
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f compose.test.yaml down -v
+
+  frontend:
+    name: Frontend gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Types
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
