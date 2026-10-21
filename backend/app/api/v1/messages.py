@@ -26,16 +26,17 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_session, get_user_permission_names, require_permission
+from app.api.deps import get_session, get_user_permission_names, get_user_scope, require_permission
 from app.core.config import get_settings
 from app.core.http_status import (
     HTTP_413_CONTENT_TOO_LARGE,
     HTTP_422_UNPROCESSABLE,
 )
-from app.models import Message, MessageAttachment, User
+from app.models import Conversation, Message, MessageAttachment, User
+from app.services.cases import CaseScope, case_scoped, scope_filter
 from app.schemas.messaging import (
     ConversationCreate,
     ConversationResponse,
@@ -67,6 +68,31 @@ def _not_found() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_404_NOT_FOUND, detail="No encontrado"
     )
+
+
+async def _scope_clause(
+    session: AsyncSession, actor: User, scope: CaseScope
+) -> ColumnElement[bool] | None:
+    """What the caller may see of the conversation book.
+
+    `None` means everything, which is what `CaseScope.ALL` resolves to.
+
+    A conversation carrying a `case_id` is bound to that expediente and is
+    filtered on it. A conversation with **no** `case_id` is firm-wide, and stays
+    visible to whoever holds `messages:read`. That is a deliberate decision
+    rather than an oversight: internal notes with no expediente attached are
+    ordinary practice, and `test_staff_drafts_but_neither_issues_nor_voids`
+    showed what happens when a scope filter answers "no existe" where the truth
+    is "that one is not yours, this one is".
+
+    `case_scoped` drops NULL rows, so they are ORed back here. Pinned by
+    `test_a_thread_without_a_case_stays_readable` so tightening later is a
+    visible decision.
+    """
+    clause = case_scoped(Conversation.case_id, await scope_filter(session, actor, scope))
+    if clause is None:
+        return None
+    return or_(Conversation.case_id.is_(None), clause)
 
 
 def _attachment_disposition(file_name: str) -> str:
@@ -104,14 +130,17 @@ def _participant_name(user: User | None) -> str:
 async def list_conversations(
     session: Annotated[AsyncSession, Depends(get_session)],
     actor: Annotated[User, Depends(require_permission("messages:read"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
     case_id: Annotated[UUID | None, Query()] = None,
     conversation_type: Annotated[str | None, Query()] = None,
     only_unread: Annotated[bool, Query()] = False,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[ConversationResponse]:
     """Conversations the caller takes part in, most recently active first."""
+    clause = await _scope_clause(session, actor, scope)
     summaries = await MessagingService(session).list_conversations(
         actor,
+        scope_clause=clause,
         case_id=case_id,
         conversation_type=(
             ConversationType(conversation_type) if conversation_type else None
@@ -185,16 +214,18 @@ async def get_thread(
     conversation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     actor: Annotated[User, Depends(require_permission("messages:read"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
     before: Annotated[datetime | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> ThreadResponse:
     """One conversation with its messages. Reading marks the thread as read."""
+    clause = await _scope_clause(session, actor, scope)
     service = MessagingService(session)
-    conversation = await service.get_conversation(conversation_id, actor)
+    conversation = await service.get_conversation(conversation_id, actor, scope_clause=clause)
     if conversation is None:
         raise _not_found()
 
-    messages = await service.list_messages(conversation_id, actor, before=before, limit=limit)
+    messages = await service.list_messages(conversation_id, actor, scope_clause=clause, before=before, limit=limit)
     participant = await service.participant(conversation_id, actor.id)
     unread = await service.unread_count(conversation_id, participant.last_read_at)
     await service.mark_read(conversation_id, actor)
@@ -310,6 +341,7 @@ async def send_message(
     conversation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     actor: Annotated[User, Depends(require_permission("messages:send"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
     body: Annotated[str, Form(max_length=5000)],
     files: Annotated[list[UploadFile], File()] = [],  # noqa: B006
 ) -> MessageResponse:
@@ -324,8 +356,9 @@ async def send_message(
     exhaust a process that has no other guard. `read(cap + 1)` bounds what a
     single oversized file can cost, the same pattern the media endpoint uses.
     """
+    clause = await _scope_clause(session, actor, scope)
     service = MessagingService(session)
-    conversation = await service.get_conversation(conversation_id, actor)
+    conversation = await service.get_conversation(conversation_id, actor, scope_clause=clause)
     if conversation is None:
         raise _not_found()
 
@@ -381,12 +414,14 @@ async def get_message(
     message_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     actor: Annotated[User, Depends(require_permission("messages:read"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
 ) -> MessageResponse:
+    clause = await _scope_clause(session, actor, scope)
     service = MessagingService(session)
     message = await session.get(Message, message_id)
     if message is None or message.deleted_at is not None:
         raise _not_found()
-    conversation = await service.get_conversation(message.conversation_id, actor)
+    conversation = await service.get_conversation(message.conversation_id, actor, scope_clause=clause)
     if conversation is None:
         raise _not_found()
     return await _message_response(session, message)
@@ -426,6 +461,7 @@ async def download_attachment(
     attachment_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     actor: Annotated[User, Depends(require_permission("messages:read"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
 ) -> Response:
     """Download an attachment. Always served as an attachment, never inline."""
     result = await session.execute(
@@ -435,10 +471,11 @@ async def download_attachment(
     if attachment is None:
         raise _not_found()
 
+    clause = await _scope_clause(session, actor, scope)
     service = MessagingService(session)
     try:
         found, content = await service.read_attachment(
-            attachment.message_id, attachment.id, actor
+            attachment.message_id, attachment.id, actor, scope_clause=clause
         )
     except MessageError as error:
         raise HTTPException(

@@ -5,10 +5,12 @@ portal and to anyone who is not a participant. Every test below is written from
 the perspective of someone who should *not* see something.
 """
 
+from typing import cast
 import json
+from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
@@ -21,9 +23,11 @@ from app.core.config import get_settings
 from app.core.http_status import HTTP_413_CONTENT_TOO_LARGE
 from app.models import (
     Case,
+    CaseLawyer,
     ChangeLog,
     Client,
     ConversationParticipant,
+    Lawyer,
     Message,
     Notification,
     Role,
@@ -1307,3 +1311,164 @@ async def test_a_valid_attachment_reaches_the_service(
 
     assert response.status_code == 201
     assert len(response.json()["attachments"]) == 1
+
+# --- alcance de expediente ---------------------------------------------------
+#
+# create_conversation resolvió el alcance al escribir, pero nada lo volvió a
+# comprobar al leer. La participación era la única puerta: un abogado que estuvo
+# en un hilo y luego salió del expediente seguía leyéndolo, con su case_number,
+# y podía descargar los adjuntos. Estar en la conversación responde "me
+# escribieron esto"; no responde "puedo seguir viéndolo".
+
+
+@pytest.mark.asyncio
+async def test_a_participant_who_lost_the_case_stops_seeing_the_thread(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_user: User,
+    other_case: Case,
+    second_lawyer_token: tuple[Lawyer, str],
+) -> None:
+    lawyer, token = second_lawyer_token
+    service = MessagingService(database_session)
+    conversation = await service.create_conversation(
+        admin_user,
+        subject="Estrategia de la prueba",
+        conversation_type=ConversationType.INTERNAL,
+        case_id=other_case.id,
+        participant_ids=[cast(UUID, lawyer.user_id)],
+    )
+    await service.send_message(conversation, admin_user, "Ultimas novedades.")
+
+    detail = await client.get(
+        f"{CONVERSATIONS}/{conversation.id}", headers=_auth(token)
+    )
+
+    assert detail.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_that_thread_leaves_the_listing(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_user: User,
+    other_case: Case,
+    second_lawyer_token: tuple[Lawyer, str],
+) -> None:
+    """A restricted list that still leaks rows is a leak with extra steps."""
+    lawyer, token = second_lawyer_token
+    service = MessagingService(database_session)
+    conversation = await service.create_conversation(
+        admin_user,
+        subject="Estrategia de la prueba",
+        conversation_type=ConversationType.INTERNAL,
+        case_id=other_case.id,
+        participant_ids=[cast(UUID, lawyer.user_id)],
+    )
+
+    listed = await client.get(CONVERSATIONS, headers=_auth(token))
+
+    assert listed.status_code == 200
+    assert conversation.id not in {item["id"] for item in listed.json()}
+
+
+@pytest.mark.asyncio
+async def test_its_messages_and_attachments_stop_being_readable(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_user: User,
+    admin_token: str,
+    other_case: Case,
+    second_lawyer_token: tuple[Lawyer, str],
+    message_storage: LocalStorage,
+) -> None:
+    """The bytes are the point of the leak, so they are what the test checks."""
+    lawyer, token = second_lawyer_token
+    service = MessagingService(database_session)
+    conversation = await service.create_conversation(
+        admin_user,
+        subject="Estrategia de la prueba",
+        conversation_type=ConversationType.INTERNAL,
+        case_id=other_case.id,
+        participant_ids=[cast(UUID, lawyer.user_id)],
+    )
+    sent = await client.post(
+        f"{CONVERSATIONS}/{conversation.id}/messages",
+        data={"body": "Adjunto el strategy."},
+        files=[("files", ("strategy.txt", b"contenido reservado", "text/plain"))],
+        headers=_auth(admin_token),
+    )
+    assert sent.status_code == 201
+
+    message = await client.get(f"{MESSAGES}/{sent.json()['id']}", headers=_auth(token))
+    assert message.status_code == 404
+
+    attachment_id = sent.json()["attachments"][0]["id"]
+    download = await client.get(
+        f"{MESSAGES}/attachments/{attachment_id}", headers=_auth(token)
+    )
+    assert download.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_thread_on_your_own_case_still_works(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_user: User,
+    sample_case: Case,
+    second_lawyer_token: tuple[Lawyer, str],
+) -> None:
+    """The counterpart: once reads are filtered, the risk is the filter being too tight."""
+    lawyer, token = second_lawyer_token
+    database_session.add(
+        CaseLawyer(
+            case_id=sample_case.id,
+            lawyer_id=lawyer.id,
+            role="titular",
+            assigned_at=datetime.now(UTC),
+        )
+    )
+    await database_session.flush()
+    service = MessagingService(database_session)
+    conversation = await service.create_conversation(
+        admin_user,
+        subject="Mi expediente",
+        conversation_type=ConversationType.INTERNAL,
+        case_id=sample_case.id,
+        participant_ids=[cast(UUID, lawyer.user_id)],
+    )
+    await service.send_message(conversation, admin_user, "Todo en orden.")
+
+    response = await client.get(
+        f"{CONVERSATIONS}/{conversation.id}", headers=_auth(token)
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a_thread_without_a_case_stays_readable(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_user: User,
+    second_lawyer_token: tuple[Lawyer, str],
+) -> None:
+    """A case-less thread is firm material and keeps working.
+
+    Pinned because the fix must not become a global restriction: internal notes
+    with no expediente attached are ordinary practice.
+    """
+    lawyer, token = second_lawyer_token
+    service = MessagingService(database_session)
+    conversation = await service.create_conversation(
+        admin_user,
+        subject="Nota interna sin expediente",
+        conversation_type=ConversationType.INTERNAL,
+        participant_ids=[cast(UUID, lawyer.user_id)],
+    )
+
+    response = await client.get(
+        f"{CONVERSATIONS}/{conversation.id}", headers=_auth(token)
+    )
+
+    assert response.status_code == 200

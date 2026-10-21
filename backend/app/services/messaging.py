@@ -47,7 +47,7 @@ from app.models import (
     Notification,
     User,
 )
-from app.services.cases import resolve_scope, scope_filter
+from app.services.cases import case_scoped, resolve_scope, scope_filter
 from app.services.history import record_changes
 from app.services.storage import (
     StorageBackend,
@@ -366,14 +366,34 @@ class MessagingService:
         )
         return participant
 
+    def _scope_clause(self, scope_clause: ColumnElement[bool] | None) -> ColumnElement[bool] | None:
+        """Build the case scope restriction for conversations.
+
+        `None` means no restriction (CaseScope.ALL). Otherwise we allow:
+        - Conversations with no `case_id` (firm-wide material)
+        - Conversations whose `case_id` is in the caller's scope
+
+        `case_scoped` drops NULL rows, so they are ORed back here.
+        """
+        if scope_clause is None:
+            return None
+        return or_(Conversation.case_id.is_(None), case_scoped(Conversation.case_id, scope_clause))
+
     async def get_conversation(
-        self, conversation_id: UUID, user: User
+        self,
+        conversation_id: UUID,
+        user: User,
+        *,
+        scope_clause: ColumnElement[bool] | None = None,
     ) -> Conversation | None:
         """Return a conversation only if the caller takes part in it.
 
         Membership is a join against the participants table, not an attribute
         read: an attribute read would rely on the relationship being loaded and
         would let a caller see the thread they were never added to.
+
+        `scope_clause` restricts the visible conversations to those whose
+        `case_id` falls inside the caller's scope (or is NULL for firm-wide).
         """
         filters: list[ColumnElement[bool]] = [
             Conversation.id == conversation_id,
@@ -381,6 +401,9 @@ class MessagingService:
             ConversationParticipant.user_id == user.id,
             ConversationParticipant.left_at.is_(None),
         ]
+        clause = self._scope_clause(scope_clause)
+        if clause is not None:
+            filters.append(clause)
         if self._is_client_portal(user):
             own = await self._client_ids_for(user)
             if not own:
@@ -436,6 +459,7 @@ class MessagingService:
         self,
         user: User,
         *,
+        scope_clause: ColumnElement[bool] | None = None,
         case_id: UUID | None = None,
         conversation_type: ConversationType | None = None,
         only_unread: bool = False,
@@ -448,6 +472,9 @@ class MessagingService:
             ConversationParticipant.user_id == user.id,
             ConversationParticipant.left_at.is_(None),
         ]
+        clause = self._scope_clause(scope_clause)
+        if clause is not None:
+            filters.append(clause)
 
         if self._is_client_portal(user):
             own = await self._client_ids_for(user)
@@ -683,11 +710,20 @@ class MessagingService:
         conversation_id: UUID,
         user: User,
         *,
+        scope_clause: ColumnElement[bool] | None = None,
         before: datetime | None = None,
         limit: int = 50,
     ) -> list[Message]:
         """The thread, oldest first, paginated backwards from `before`."""
         await self.participant(conversation_id, user.id)
+        clause = self._scope_clause(scope_clause)
+        if clause is not None:
+            # Verify the conversation's case_id is in scope
+            conversation = await self.get_conversation(
+                conversation_id, user, scope_clause=scope_clause
+            )
+            if conversation is None:
+                raise MessageError("No participa en esa conversación")
 
         statement = (
             select(Message)
@@ -714,6 +750,8 @@ class MessagingService:
         message_id: UUID,
         attachment_id: UUID,
         user: User,
+        *,
+        scope_clause: ColumnElement[bool] | None = None,
     ) -> tuple[MessageAttachment, bytes]:
         """Read one attachment, verifying its digest before handing it over."""
         result = await self.session.execute(
@@ -729,7 +767,15 @@ class MessagingService:
         message = await self.session.get(Message, message_id)
         if message is None or message.deleted_at is not None:
             raise MessageError("El mensaje no existe")
-        await self.participant(message.conversation_id, user.id)
+        clause = self._scope_clause(scope_clause)
+        if clause is not None:
+            conversation = await self.get_conversation(
+                message.conversation_id, user, scope_clause=scope_clause
+            )
+            if conversation is None:
+                raise MessageError("No participa en esa conversación")
+        else:
+            await self.participant(message.conversation_id, user.id)
 
         try:
             content = await self.storage.read(attachment.storage_key)
