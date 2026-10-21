@@ -1,0 +1,18 @@
+# Fin de línea normalizado a LF. El proyecto nació en Windows (CRLF) y trabaja
+# ahora en Linux Fedora; con LF los scripts de shell, pg_restore y los diffs
+# dejan de depender del sistema operativo del editor.
+* text=auto eol=lf
+
+# Exclusiones explícitas: text=auto ya detecta binarios, pero se fijan para que
+# ningún editor ni diff los toque nunca.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.woff binary
+*.woff2 binary
