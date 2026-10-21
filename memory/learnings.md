@@ -1,5 +1,24 @@
 <!-- Nuevos aprendizajes debajo de esta línea -->
 
+- **2026-10-21 — Migrar un proyecto de Windows a Linux deja dos capas de CRLF, no una:**
+  **Contexto:** Al auditar tras cambiar de Windows a Fedora había 24 ficheros
+  tracked con CRLF en el árbol de trabajo, ~6.500 líneas de diff "modificado",
+  y el fix de seguridad de mensajería enterrado bajo ese ruido. Añadir
+  `* text=auto eol=lf` + `git add --renormalize .` limpió la mitad: los ficheros
+  EOL-only desaparecieron del diff, pero tras convertir el árbol físicamente a
+  LF apareció un estado "modificado con diff vacío" — el índice ya estaba en LF
+  y el `M` era solo caché de stat, que `git add -u` refrescó.
+  **Aprendizaje:** Un cambio de plataforma se ve en tres capas que se resuelven
+  en distinto momento y con distinta herramienta: (1) el diff cruel del
+  navegador, que `.gitattributes` abstrae; (2) los blobs almacenados, que
+  normaliza `--renormalize`; (3) la caché de stat, que refresca `git add -u`.
+  Y `git status` puede mentir en ambas direcciones cuando cambia la
+  configuración de atributos: verificar con diff antes de creerlo.
+  **Aplicación futura:** Antes de confirmar trabajo real sobre un diff masivo,
+  aislar siempre `git diff -w`; si solo cambian líneas, el commit de
+  normalización debe ir separado para que el cambio de contenido quede leíble y
+  reversible.
+
 - **2026-10-05 — Un argumento obligatorio convierte un olvido en un error de compilación:**
   **Contexto:** El IDOR de documentos venía de que `get_visible_document` comprobaba
   visibilidad y **no** alcance de expediente, mientras el listado sí lo hacía. La

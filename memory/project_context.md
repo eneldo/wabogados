@@ -16,8 +16,8 @@ generación asistida sigue pendiente de proveedor).
   administración modular.
 - Docker Compose levanta PostgreSQL, backend, worker de evidencias, MinIO,
   destino de respaldo y frontend con healthchecks.
-- Tests Docker aislados por savepoint sobre PostgreSQL efímero: 711 pruebas,
-  86,30 % de cobertura y **sin un solo aviso**.
+- Tests Docker aislados por savepoint sobre PostgreSQL efímero: **810 pruebas,
+  86,95 %** de cobertura según la última sesión registrada (2026-10-06), sin avisos
 - Frontend: ESLint, TypeScript y build limpios. **Ruff y mypy estricto limpios**
   y reproducibles: los ceilings de `ruff`, `mypy` y `sqlalchemy` están fijados en
   `pyproject.toml` a lo verificado, y el extra `dev` incluye los stubs de tipos
@@ -59,7 +59,7 @@ Security: no-new-privileges, cap_drop ALL, non-root.
 
 ## Servicios externos
 MinIO/S3 (pendiente Fase 0B/7)
-Redis/Cola (pendiente Fase 7)
+Redis: contador compartido de rate limiting (cerrado 2026-10-05); cola de trabajos propia de evidencias (pendiente Fase 7)
 ClamAV (pendiente Fase 7)
 
 ## Seguridad
@@ -71,14 +71,19 @@ ClamAV (pendiente Fase 7)
 - Rate limiting por usuario o IP, más estricto en autenticación
 
 ## Riesgos conocidos
-- Rate limiter en memoria: requiere Redis antes de escalar a varios workers
+- Rate limiting: **cerrado el 2026-10-05** con almacén compartido sobre Redis
+  (ventana deslizante con script Lua en `app/services/rate_limit_store.py`);
+  si Redis cae, cuenta en memoria y registra el error. Detalle en KNOWN_ISSUES.md
 - MinIO no integrado en el flujo de producción (el mecanismo S3 sí está listo)
 - Sin antivirus para evidencias
 - Respaldo externo en el mismo host: en producción debe ser otra máquina
 - Sin ensayo de restauración con la aplicación caída
 - Si el token de acceso ya expiró, cerrar sesión no puede revocar el refresco
   (ADR-060); el token sigue vivo hasta caducar
-- No hay CI/CD pipeline
+- CI/CD: existe `.github/workflows/quality-gates.yml` (gitleaks, ruff, mypy,
+  migraciones reversibles, pytest con umbral 80 % de cobertura, builds de imagen
+  y gates de frontend). El repo aún no tiene remoto publicado: la primera corrida
+  real queda pendiente
 
 ## Funcionalidades terminadas
 Ver IMPLEMENTED_FEATURES.md

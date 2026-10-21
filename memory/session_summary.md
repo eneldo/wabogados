@@ -1,5 +1,46 @@
 # Última sesión
 
+Fecha: 2026-10-21
+
+## Auditoría y migración Windows → Fedora: normalización y cierre del alcance de mensajes (2026-10-21)
+
+**Contexto nuevo del entorno:** todo el código anterior se escribió en Windows;
+desde hoy el entorno de trabajo es Linux Fedora. Eso explica el estado que
+encontró la auditoría: 24 ficheros tracked en CRLF y los mensajes de
+`NEXT_STEPS`/`session_summary` asumiendo PowerShell 5.1 y WSL.
+
+Se aplicaron las correcciones de la auditoría, en tres commits:
+
+1. **`cf7dd56` — Normaliza fin de línea a LF.** `.gitattributes` nuevo con
+   `* text=auto eol=lf` y exclusiones binarias explícitas. El truco: con el
+   atributo en vigor, los 20 ficheros "modificados" solo por EOL desaparecieron
+   del diff — el índice y HEAD ya estaban en LF y el estado `M` que quedó
+   después de convertir el árbol físicamente era solo caché de stat, refrescada
+   con `git add -u`. El árbol, el índice y HEAD quedan en LF verificados.
+2. **`128881f` — Alcance de expediente en la mensajería.** El fix de
+   `messaging.py` (el pendiente más grave de la auditoría previa: un abogado que
+   salió del expediente seguía leyendo hilos y descargando adjuntos) estaba
+   escrito en el disco sin confirmar y **enterrado bajo ~6.500 líneas de churn
+   de EOL**. Quedó aislado como commit propio con sus 167 líneas de pruebas.
+   **Pendiente: este entorno no tiene Docker, la suite no se ha ejecutado.**
+3. **Memoria corregida** (exactamente el patrón de "dato escrito y nunca
+   releído"): `project_context` creía que no había CI (existe `quality-gates.yml`
+   desde octubre) y que el rate limiter seguía en memoria (Redis se cerró el
+   2026-10-05); `AGENTS.md`/maestro referenciaban `known_issues.md` cuando el
+   fichero es `KNOWN_ISSUES.md` y en un host Linux sensible a mayúsculas la
+   referencia estaría rota; y la nota "el repo no es git" quedó fechada como
+   errata histórica.
+
+Copia de seguridad del estado previo en `.tmp/pre-audit-backup-2026-10-21.patch`.
+
+**Pendientes de esta migración de entorno**: instalar Docker y el toolchain de
+backend en Fedora, ejecutar la suite completa contra `compose.test.yaml`, y
+decidir el destino de la capa documental de agentes (`agents/`,
+`orchestration/`, `roles/`) que sigue como documentos muertos sin instalación
+real en OpenCode.
+
+---
+
 Fecha: 2026-10-02, 2026-10-03, 2026-10-04, 2026-10-05 y 2026-10-06
 
 ## Multimedia sin alcance, y la pérdida de un fichero (2026-10-06, segunda parte)
@@ -13,8 +54,9 @@ contra un `case_id` ajeno.
 
 **Perdí `backend/app/tests/test_messaging.py` y lo recuperé de una foto vieja.**
 Encadené `-replace` con `| Out-Null`; la tubería devolvió `$null` y el `WriteAllText`
-siguiente vació el fichero: **960 de 1309 líneas**. Este repositorio **no es un
-repositorio git**, así que no había red de seguridad. Lo recuperé de
+siguiente vació el fichero: **960 de 1309 líneas**. La red de seguridad falló
+porque **aún no existía git**; se inicializó el 2026-10-06 y hoy el comando
+siguiente ya no es un riesgo de pérdida. Lo recuperé de
 `wabogados_v1_master-backend:latest`, que conservaba una copia de 13 horas antes, y
 reapliqué a mano las cuatro pruebas de adjuntos de la sesión.
 

@@ -31,7 +31,7 @@ Antes de una tarea importante:
 2. Leer `memory/project_context.md`.
 3. Leer `memory/session_summary.md`.
 4. Consultar aprendizajes recientes.
-5. Consultar `memory/known_issues.md` si existe un problema.
+5. Consultar `memory/KNOWN_ISSUES.md` si existe un problema.
 6. Revisar directivas relevantes.
 7. Inspeccionar código y configuración real.
 8. Ejecutar la tarea.
