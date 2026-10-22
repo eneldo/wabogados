@@ -1,41 +1,54 @@
 # Entorno
 
 ## Sistema operativo
-- Windows con PowerShell 5.1. El separador de comandos es `;`, nunca `&&`.
-- El intérprete disponible es `python`, no `python3`.
-- Cuidado con `Set-Content` en PowerShell 5.1: añade BOM y puede alterar
-  codificación. Para escribir Markdown usar la herramienta de edición.
+- **Fedora Linux** (migración concluida el 2026-10-21; el historial de abajo era
+  Windows con PowerShell 5.1 y ya no aplica). El shell es `bash` con `&&`.
+- El intérprete del host es `python3`; las dependencias del backend viven **en
+  el contenedor** (`/opt/venv`), no en un venv del host.
 
 ## Python
 - 3.12 en desarrollo; 3.12.11-slim en la imagen Docker.
-- Dependencias instaladas en `/opt/venv` dentro del contenedor.
+- Dependencias instaladas en `/opt/venv` dentro del contenedor. El imagen base
+  (target `builder`) trae las dev, pero **el servicio `test` de Compose las
+  instala en cada corrida** (`command` en `compose.test.yaml`): una corrida
+  con `pytest` directamente falla con *No module named pytest* si se salta ese
+  paso — incluir `pip install -e .[dev]` cuando se corra un subconjunto.
 
 ## Node.js
-- Next.js 16 con React 19, TypeScript strict y Tailwind 4.
+- Next.js 16 con React 19, TypeScript strict y Tailwind 4. Playwright con
+  Chromium 141 en `~/.cache/ms-playwright`.
 
 ## Docker
-- Compose con `postgres:17.6-alpine`, `backend` y `frontend`.
-- `compose.test.yaml` monta `./backend` en `/build` y usa PostgreSQL efímero en
-  `tmpfs`; el volumen debe coincidir con el `WORKDIR` de la imagen de test.
+- Docker 29.9.2 + Compose v5.6.1 instalados en el host Fedora. Cuidado: el
+  grupo `docker` está en `/etc/group` pero una sesión ya iniciada puede no
+  llevarlo; si `docker info` da *permission denied*, usar `sg docker -c "..."`.
+- El **PostgreSQL 18.6 de systemd ocupa el 5432; el proyecto mapea 5433 en
+  host** (`.env` del host con `POSTGRES_PORT=5433`; dentro de la red Compose
+  el backend sigue usando 5432).
+- Compose con `postgres:17.6-alpine`, `backend`, `clamav`, `evidence-worker`,
+  `redis` y `frontend` (los dos servicios `minio*` están comentados a propósito).
+  `compose.test.yaml` monta `./backend` en `/build` y usa PostgreSQL efímero en
+  `tmpfs`; el volumen debe coincidir con el `WORKDIR` (= `/build`) de la imagen
+  de test.
 - Ejecutar la suite con:
   `docker compose -f compose.yaml -f compose.test.yaml run --rm test`
 - `docker compose up --force-recreate` sin `--build` reutiliza la imagen
-  anterior; hay que incluir `--build`.
+  anterior; hay que incluir `--build`. Recuérdalo tras tocar frontend.
 - Los volúmenes con nombre heredan la propiedad del directorio existente en la
   imagen. Si el directorio no se crea, el volumen nace como root y el usuario no
   root no puede escribir.
 
 ## Base de datos
-- PostgreSQL 17. La conexión host → Docker presenta fallos intermitentes: las
-  pruebas se ejecutan siempre dentro de Docker.
-- Si un test se ejecuta con un motor distinto, el `postgres-test` queda
-  contaminado. Reiniciarlo antes de la suite:
-  `docker compose -f compose.yaml -f compose.test.yaml restart postgres-test`
+- PostgreSQL 17 vía el contenedor; las pruebas se ejecutan siempre dentro de
+  Docker, se corran o no en el host.
+- El contenedor `postgres-test` contamina entre corridas (la base persiste):
+  si un test se ejecutó con otro motor, reiniciarlo antes de la suite:
+  `docker compose -f compose.yaml -f compose.test.yaml restart postgres-test`.
 
 ## Servicios
 - Backend: <http://localhost:8000> (healthcheck en `/api/v1/health/ready`).
 - Frontend: <http://localhost:3000>.
-- PostgreSQL local: `localhost:5432`.
+- PostgreSQL local (host): `localhost:5433`; desde la red Compose: `postgres:5432`.
 
 ## Almacenamiento
 - Documentos en el volumen `storage_data`, montado en

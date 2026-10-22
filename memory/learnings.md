@@ -799,3 +799,33 @@
   directorios tocados por el init, y añadir exactamente las capacidades del
   defendido en compose con comentarios. Falla cerrada nunca requiere
   adivinanzas: reproduce el error, no des la pausa completa.
+
+- **2026-10-21/22 — la primera prueba de una ruta destapa lo que ninguna otra
+  miraba:**
+  **Contexto:** Al escribir la primera prueba del `413` de la biblioteca
+  multimedia (el tope de 500 MB nunca se había ejercitado), la corrida destapó
+  un aviso de deprecación (`HTTP_413_REQUEST_ENTITY_TOO_LARGE`, renombrado en
+  Starlette 1.x) que ya estaba resuelto en el envoltorio
+  `app/core/http_status.py` y que el router seguía sin usar, precisamente
+  porque ese código de error nunca se ejecutaba en pruebas.
+  **Aprendizaje:** Un código de error sin prueba es un rincón donde el
+  mantenimiento se propaga a medias: la corrección de las constantes HTTP del
+  proyecto existe, y lo que no la importa no la recibe.
+  **Aplicación futura:** Al tocar por primera vez una respuesta de error,
+  comprobar de qué módulo viene su constante; si existe el envoltorio propio,
+  adoptarlo y probar la respuesta, que es cuando el aviso y la deprecación
+  dejan de pasar desapercibidos.
+
+- **2026-10-21/22 — una clave determinista de derivado frente a la expectativa
+  de "clave distinta al reemplazar":**
+  **Contexto:** La prueba de regeneración de miniatura esperaba que al reemplazar
+  la imagen el `storage_key` cambiara, y falló con dos claves idénticas. La
+  expectativa era contraria al diseño: `build_media_derivative_key` es
+  determinista "a propósito", porque una regeneración escribe **sobre su propia
+  salida** en vez de acumular copias junto a ella.
+  **Aprendizaje:** Con claves deterministas, la identidad del objeto no prueba
+  la regeneración: la prueba de sustitución debe comparar el **contenido** (el
+  digest del derivado contra el resultado esperado), no la dirección.
+  **Aplicación futura:** En cualquier esquema de claves reproducibles (S3,
+  derivados, transcodes), afirmar sobre bytes y digest; reservar "cambió la
+  clave" para afirmar una rotación de claves, que es distinta operación.

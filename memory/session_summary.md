@@ -2,6 +2,58 @@
 
 Fecha: 2026-10-21 (continuación) y 2026-10-22
 
+## Biblioteca multimedia: miniaturas de imagen, y el agujero de la duración cerrado (2026-10-21/22)
+
+Continuación local (sin push, los tres commits van adelante de `origin/main`)
+de los pendientes que `NEXT_STEPS.md` ordenaba para el módulo:
+
+1. **El agujero de `duration_seconds` cerrado.** `MediaUpdate` ya no acepta el
+   campo: era un dato que el cliente escribía sobre una columna cuyo comentario
+   dice «stays null until it is measured» — hoy no hay medición (sin `ffprobe`).
+   La prueba pide PATCH con el campo **más** un título legítimo, para fijar
+   «el campo es inerte, el resto no»: `test_the_measured_duration_cannot_be_
+   written_from_the_client`.
+2. **`MAX_MEDIA_BYTES` documentado en `.env.example` + el 413 probado dos
+   veces** (desbordado y justo en el tope, que descarta el off-by-one de
+   `read(cap + 1)`). El test destapó un aviso de deprecación de Starlette 1.x
+   (`HTTP_413_REQUEST_ENTITY_TOO_LARGE`) que permanecía silencioso porque el
+   413 de la biblioteca **no tenía ni una prueba**: corregido al constante del
+   envoltorio propio `HTTP_413_CONTENT_TOO_LARGE`.
+3. **Miniaturas de imagen.** Servicio nuevo `app/services/media_processing.py`
+   sobre el patrón ya probado de evidencias —`fit_within` y `to_rgb` pasaron de
+   privados a públicos en `evidence_processing.py` para reutilizar, no
+   duplicar—: EXIF antes de reescalar, proporción, nunca agrandar, alpha sobre
+   blanco. `MediaService.attach_file` genera (respaldo *best effort*: un póster
+   que falla no cuesta la subida; sale en el log, y el job `process` de la cola
+   lo sana sin re-subir), sobrescribe con la **clave determinista**
+   `media/{id}/thumbnails/poster.jpg`, y **retira el póster** cuando el recurso
+   deja de ser imagen — sin eso, un MP4 que reemplaza a un PNG seguiría
+   mostrando la cara de la foto que ya no existe.
+4. **Ruta `GET /media/{id}/thumbnail`** bajo `media:download` (un póster es el
+   archivo para efectos de autorización) y con el alcance obligatorio del
+   módulo. **No escribe `media_access_logs`**, decisión escrita en el
+   docstring: paginar la biblioteca es navegar; quien revela los bytes reales
+   sigue siendo `/content`.
+5. **Frontend**: proxy `/api/media/[id]/thumbnail` (el 404 llega como 404, no
+   como página de error), `MediaThumb` con caída en dos pasos (derivado →
+   original o nada), póster de 56 px en la fila de imagen, y la ficha abre por
+   el derivado: **el original entero de una imagen solo se lee cuando no hay
+   póster**.
+
+Verificación completa, toda local: **844 pruebas, 87,23 % de cobertura**
+(14 nuevas), `ruff` y `mypy` estricto limpios; ciclo HTTP real sobre el stack
+(PNG 900×600 → póster JPEG 400×267); la puerta de maquetación de Playwright en
+verde (56) sobre el frontend **reconstruido** (`--build --force-recreate`);
+`verify_integrity --mode full --check-orphans`: 6/6 digest, 15 huérfanos
+significa los mismos evidencias anteriores al ensayo del 2026-10-05, **sin
+huérfanos de media**. Humo y usuario temporal borrados (9 usuarios, 0 recursos
+de humo).
+
+Nota de entorno: docker necesita `sg docker` en la sesión del agente (el grupo
+no está en el proceso en marcha aunque sí en `/etc/group`), y el contenedor de
+`run --rm test` necesita `pip install -e .[dev]` en cada corrida pues el
+imagen base no trae pytest — casa con el `command` del propio `compose.test.yaml`.
+
 ## Primera corrida verde del CI (2026-10-22)
 
 El remoto quedó conectado (`origin github.com/eneldo/wabogados`, la rama local

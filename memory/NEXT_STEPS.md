@@ -147,24 +147,29 @@ pantalla, y funcionan.
 está puesto (tablas, cola y claves, 2026-10-05), pero las cuatro capacidades son
 trabajo de varias sesiones, no un botón:
 
-1. **Miniaturas.** Lo más cercano a cerrar y **no necesita `ffmpeg`**: reutiliza
-   `evidence_processing` (Pillow), que ya genera miniatura de 400 px. Falta el
-   servicio que la escriba, la ruta que la sirva (`/api/media/[id]/thumb`, el
-   original hoy se sirve entero) y la celda/poster del frontend.
-2. **Duración medida.** La columna existe desde `b6c7d8e9f0a1` y **nadie la
-   escribe**. Para vídeo y audio hace falta `ffprobe`; mientras tanto,
-   `MediaUpdate.duration_seconds` deja que el **cliente** la escriba, lo que
-   contradice el comentario del modelo. Eso debería cerrarse antes que las demás
-   cosas: es un dato que hoy acepta cualquiera.
+1. **Miniaturas de imagen —construidas (2026-10-21/22)**: `media_processing.py`
+   deriva el póster JPEG de 400 px (patrón de evidencias: `fit_within`/`to_rgb`
+   ahora públicos), se genera en cada subida, clave determinista sobrescrita,
+   y se retira si el recurso deja de ser imagen. Ruta
+   `GET /media/{id}/thumbnail` bajo `media:download` + alcance; **sin rastro
+   en `media_access_logs`** (decisión escrita en la ruta: paginar es navegar).
+   Frontend: proxy `/api/media/[id]/thumbnail`, `MediaThumb` en la celda y la
+   ficha. El original completo de una imagen solo se lee cuando no hay
+   derivado (recursos anteriores al generador). Verificado: 14 pruebas
+   nuevas, ciclo HTTP real (PNG→JPEG 400 px), e2e de maquetación en verde.
+2. ~~**Duración medida.**~~ **El agujero cerrado (2026-10-21/22)**: `MediaUpdate`
+   ya no acepta `duration_seconds`, con prueba de que el campo es inerte y el
+   resto del PATCH no. La columna sigue esperando su medición: cuando llegue
+   `ffprobe` el valor entra por la cola de procesamiento, no por PATCH.
 3. **Transcodificación.** Falta `ffmpeg` en la imagen (builder y runtime), una
    dependencia de vídeo en Python, un contrato de **escritura en streaming**
    porque `StorageBackend.write()` solo acepta bytes completos —con 500 MB de
    tope, hoy eso significa el archivo entero en memoria—, y elegir formatos y
    política.
-4. **Archivos grandes.** Hoy hay un tope de 500 MB y un **413 que admite que la
-   cola no está disponible**. Falta el worker (copiando el patrón `SKIP LOCKED`
-   de `evidence_worker`) y el servicio de Compose. Además `MAX_MEDIA_BYTES` no
-   está en `.env.example` y no hay ni un test del 413.
+4. **Archivos grandes.** Hoy hay un tope de 500 MB y un **413 que ya está
+   probado** (desbordado y justo en el tope, 2026-10-21/22) y
+   `MAX_MEDIA_BYTES` ya está en `.env.example`. Falta el worker (copiando el
+   patrón `SKIP LOCKED` de `evidence_worker`) y el servicio de Compose.
 
 Cada uno necesita: tabla con paginación, alta en diálogo, ficha con edición,
 diálogo de confirmación y, donde aplique, el motivo por el que **no** hay botón
