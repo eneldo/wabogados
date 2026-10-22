@@ -5,11 +5,11 @@ portal and to anyone who is not a participant. Every test below is written from
 the perspective of someone who should *not* see something.
 """
 
-from typing import cast
 import json
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from typing import cast
 from uuid import UUID, uuid4
 
 import pytest

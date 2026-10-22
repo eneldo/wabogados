@@ -377,7 +377,13 @@ class MessagingService:
         """
         if scope_clause is None:
             return None
-        return or_(Conversation.case_id.is_(None), case_scoped(Conversation.case_id, scope_clause))
+        restricted = case_scoped(Conversation.case_id, scope_clause)
+        if restricted is None:
+            # Inalcanzable hoy: `case_scoped` solo es None cuando la cláusula
+            # lo es, y esa rama se descartó arriba. Se anota como rama
+            # explícita para que `or_` nunca reciba None.
+            return None
+        return or_(Conversation.case_id.is_(None), restricted)
 
     async def get_conversation(
         self,

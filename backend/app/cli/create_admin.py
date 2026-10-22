@@ -20,7 +20,7 @@ from app.db.session import SessionFactory
 from app.models import Role, User, UserRole
 from app.security import hash_password
 
-EMAIL = TypeAdapter(EmailStr)
+EMAIL: TypeAdapter[EmailStr] = TypeAdapter(EmailStr)
 
 
 async def create_admin(

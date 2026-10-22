@@ -36,7 +36,6 @@ from app.core.http_status import (
     HTTP_422_UNPROCESSABLE,
 )
 from app.models import Conversation, Message, MessageAttachment, User
-from app.services.cases import CaseScope, case_scoped, scope_filter
 from app.schemas.messaging import (
     ConversationCreate,
     ConversationResponse,
@@ -49,6 +48,7 @@ from app.schemas.messaging import (
     ThreadResponse,
     UnreadSummaryResponse,
 )
+from app.services.cases import CaseScope, case_scoped, scope_filter
 from app.services.messaging import (
     AttachmentInput,
     ConversationStatus,
@@ -225,7 +225,9 @@ async def get_thread(
     if conversation is None:
         raise _not_found()
 
-    messages = await service.list_messages(conversation_id, actor, scope_clause=clause, before=before, limit=limit)
+    messages = await service.list_messages(
+        conversation_id, actor, scope_clause=clause, before=before, limit=limit
+    )
     participant = await service.participant(conversation_id, actor.id)
     unread = await service.unread_count(conversation_id, participant.last_read_at)
     await service.mark_read(conversation_id, actor)
@@ -421,7 +423,9 @@ async def get_message(
     message = await session.get(Message, message_id)
     if message is None or message.deleted_at is not None:
         raise _not_found()
-    conversation = await service.get_conversation(message.conversation_id, actor, scope_clause=clause)
+    conversation = await service.get_conversation(
+        message.conversation_id, actor, scope_clause=clause
+    )
     if conversation is None:
         raise _not_found()
     return await _message_response(session, message)
