@@ -29,7 +29,11 @@ SKIP_RESTORE_VERIFY="${SKIP_RESTORE_VERIFY:-0}"
 REMOTE_TARGET="${BACKUP_REMOTE:-}"
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-RUN_DIR="${BACKUP_ROOT}/${STAMP}"
+
+mkdir -p "${BACKUP_ROOT}"
+# Absoluto a propósito: compose run resuelve un `-v` relativo como volumen
+# nombrado, no como directorio del host, y montaría vacío o rechazaría el nombre.
+RUN_DIR="$(cd "${BACKUP_ROOT}" && pwd)/${STAMP}"
 
 mkdir -p "${RUN_DIR}"
 
@@ -54,7 +58,7 @@ CONFIG_FILE="${RUN_DIR}/config.json"
     | sed 's/^/  "/; s/$/",/; s/="/": "/' \
     || true
   printf '  "alembic_revision": "%s"\n' "$(
-    docker compose -T backend alembic current 2>/dev/null | grep -oE '[0-9a-f]{10,}( \(head\))?' | head -1 | tr -d ' ' || echo "unknown"
+    docker compose exec -T backend alembic current 2>/dev/null | grep -oE '[0-9a-f]{10,}( \(head\))?' | head -1 | tr -d ' ' || echo "unknown"
   )"
   printf '}\n'
 } > "${CONFIG_FILE}"
@@ -142,7 +146,7 @@ log "  ${MANIFEST} ($(wc -l < "${MANIFEST}") archivos)"
 # broken copy at the far end that looks like a backup.
 log "verificando objetos por digest"
 set +e
-docker compose exec -T \
+docker compose run --rm --no-deps \
   -v "${RUN_DIR}:/backup:ro" \
   backend python -m app.cli.verify_backup_files \
     --manifest "/backup/MANIFEST.sha256" \
@@ -161,7 +165,7 @@ fi
 if [ "${REMOTE_TARGET}" = "required" ] || [ "${BACKUP_REMOTE_ENABLED:-false}" = "true" ]; then
   log "copia externa habilitada"
   set +e
-  docker compose exec -T \
+  docker compose run --rm --no-deps \
     -v "${RUN_DIR}:/backup:ro" \
     backend python -m app.cli.remote_backup \
       --push "/backup/${STAMP}" \
@@ -189,10 +193,10 @@ else
   # The dump is mounted read only and restored into a scratch database by
   # verify_backup, so the live database is never touched.
   set +e
-  docker compose exec -T \
+  docker compose run --rm --no-deps \
     -v "${RUN_DIR}:/backup:ro" \
     backend python -m app.cli.verify_backup \
-      --dump "/backup/$(basename "${RUN_DIR}/postgres.dump")" \
+      --dump "/backup/postgres.dump" \
       --manifest "/backup/postgres.manifest.json" \
     2>&1 | tail -25
   VERIFY_STATUS=$?
