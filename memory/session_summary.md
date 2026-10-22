@@ -47,6 +47,22 @@ Docker instalado en el host (29.9.2 + Compose v5.6.1). La suite corrió contra
 - Pendiente en este entorno: **gates de frontend** (`tsc`, ESLint, build de
   Next.js) y conectar el remoto para que `quality-gates.yml` corra de verdad.
 
+## Gates de frontend en verde (2026-10-21, tercera parte)
+
+Sobre `frontend/node_modules` heredado de la instalación Windows (con binarios
+plataforma-específicos), `npm ci` reinstaló todo desde el lockfile — la lección:
+no arrastrar `node_modules` entre sistemas operativos.
+
+Resultado: `npm run lint` limpio, `tsc --noEmit` limpio, `next build` completo
+con las 19 rutas generadas. Los **cuatro gates de frontend pasan en Fedora**;
+el ciclo de migración de entorno queda cerrado. Solo queda conectar el remoto
+GitHub para la primera corrida real de `quality-gates.yml`.
+
+Nueva entrada en `KNOWN_ISSUES.md`: 5 avisos high de `npm audit`, todos en la
+cadena de lint (`eslint-config-next`→`fast-glob`→`micromatch`→`braces`),
+devDependencies sin impacto productivo; se resuelven con el próximo upgrade de
+Next, no con `--force`.
+
 **Pendientes de esta migración de entorno**: instalar Docker y el toolchain de
 backend en Fedora, ejecutar la suite completa contra `compose.test.yaml`, y
 decidir el destino de la capa documental de agentes (`agents/`,

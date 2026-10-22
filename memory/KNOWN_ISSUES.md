@@ -1,5 +1,10 @@
 # KNOWN ISSUES
 
+- **`npm audit` con 5 avisos high en la cadena de lint del frontend (2026-10-21).**
+  `eslint-config-next` ≥14.3 arrastra `fast-glob`/`micromatch`/`braces`
+  (ReDoS por agotamiento de pila). Esas dependencias son devDependencies del
+  linting: **no viajan a producción**. No se aplicó `--force` (rompería la
+  config de ESLint); se resuelven con el upgrade de Next/eslint-config-next.
 - **No hay motor antivirus.** La validación de evidencia es estructural:
   firmas, formatos prohibidos, políglotos y dimensional. Eso detecta ejecutables
   disfrazados y bombas de descompresión, **no malware**. Una firma que exige
