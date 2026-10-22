@@ -101,7 +101,9 @@ Si el código es 4, el respaldo **no existe**. No lo archive como válido.
 ## 4. Verificar una copia sin restaurarla en producción
 
 ```bash
-docker compose exec -T \
+# `exec` no admite montajes en Compose 5.6: usar `run` con la ruta absoluta
+# (un origen relativo en `run -v` se interpreta como volumen nombrado).
+docker compose run --rm --no-deps \
   -v "$PWD/backups/<marca>:/backup:ro" \
   backend python -m app.cli.verify_backup \
     --dump /backup/postgres.dump \
