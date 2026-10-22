@@ -2,6 +2,16 @@
 
 Versión 1.0 · 30 de septiembre de 2026
 
+> **Estado real (2026-10-21).** Ocho skills ya están **instaladas** en este
+> proyecto: `iniciar-proyecto`, `mantener-continuidad`, `implementar-frontend`,
+> `implementar-api`, `gestionar-base-datos`, `implementar-permisos`,
+> `verificar-cambios` y `gestionar-evidencias`, en
+> `.opencode/skills/<id>/SKILL.md` con el contenido de los bloques siguientes
+> verbatim. La convención y el descubrimiento fueron verificados contra la
+> documentación oficial de OpenCode V2 (proyecto: `.opencode/skills`) y las 8
+> aparecen en la lista de skills disponibles en la sesión. El resto del
+> catálogo sigue sin instalar, a la espera de necesidad.
+
 ## Propósito y alcance
 
 Este documento reúne 27 definiciones listas para adaptar y separar en archivos `SKILL.md`. Es un catálogo con instrucciones operativas, no una instalación automática en OpenCode ni en ChatGPT. Conservar este documento como referencia de preparación; evitar cargarlo completo en cada tarea.
