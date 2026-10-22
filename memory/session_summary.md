@@ -34,6 +34,28 @@ salieron idénticos antes de escribir nada.
    ningún registry, el pin de compose apuntaba a una etiqueta muerta y el
    almacenamiento real es `STORAGE_BACKEND=local`).
 
+## Respaldo programado activo (2026-10-22, cierre de la recomendación #1)
+
+Circuito completo ya en marcha, **con datos reales y verificado end-to-end**:
+
+- `scripts/backup.sh` reutilizado como motor (dump custom, objetos,
+  manifiesto, digest, prueba de restauración en la base de producción) con dos
+  ajustes para el Compose 5.6.1 de este host (`run --no-deps` en vez de
+  `exec -v`, `RUN_DIR` absoluto) y el delegado arreglado en la revisión
+  de alembic de `config.json`.
+- `scripts/backup_host.sh` nuevo: copia secundaria al Seagate con comparación
+  de dump byte a byte, retención (14 local / 30 externa), exclusión mutua con
+  `flock` y entorno reproducible para cron.
+- La primera corrida real: **los 95 ficheros del manifiesto verificados,
+  restauración probada en base raíz (`users 9 · documents 3 · resultado OK`),
+  copia externa idéntica** en
+  `Seagate/RESPALDO_WABOGADOS/20261022T020735Z`.
+- Programado: crontab del usuario (no versionado, contiene la ruta del host)
+  `45 3 * * *` diario a las **03:45 UTC**. `vaner` ya está en el grupo docker
+  de `/etc/group`, así que lo lanza aunque su sesión gráfica no refleje el grupo.
+- Nota del host: el PostgreSQL 18.6 de systemd ocupa el 5432; el proyecto
+  mapea **5433** en host (más en session_summary §restauración).
+
 ## Auditoría y migración Windows → Fedora: normalización y cierre del alcance de mensajes (2026-10-21)
 
 **Contexto nuevo del entorno:** todo el código anterior se escribió en Windows;
