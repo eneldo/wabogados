@@ -191,7 +191,7 @@ def _as_int(value: object) -> int | None:
         return None
 
 
-def _fit_within(width: int, height: int, max_side: int) -> tuple[int, int]:
+def fit_within(width: int, height: int, max_side: int) -> tuple[int, int]:
     """Scale preserving the aspect ratio. Never enlarges, never distorts."""
     if max_side <= 0:
         return width, height
@@ -288,7 +288,7 @@ def _render(
     Returns the bytes, the chosen format and the final dimensions, so the caller
     records exactly what was produced instead of recomputing the fit.
     """
-    target_size = _fit_within(image.width, image.height, profile.max_side)
+    target_size = fit_within(image.width, image.height, profile.max_side)
     resized = image
     if target_size != (image.width, image.height):
         resized = image.resize(target_size, Image.Resampling.LANCZOS)
@@ -299,7 +299,7 @@ def _render(
         resized.save(buffer, format="PNG", optimize=True)
         return buffer.getvalue(), "PNG", target_size
 
-    converted = _to_rgb(resized)
+    converted = to_rgb(resized)
     buffer = BytesIO()
     converted.save(buffer, format=force_format or "WEBP", quality=profile.quality, method=4)
     return buffer.getvalue(), force_format or "WEBP", target_size
@@ -314,8 +314,13 @@ def _mime_for_format(target: str) -> str:
     }.get(target, "application/octet-stream")
 
 
-def _to_rgb(image: Image.Image) -> Image.Image:
-    """Convert to a mode JPEG accepts, flattening transparency onto white."""
+def to_rgb(image: Image.Image) -> Image.Image:
+    """Convert to a mode JPEG accepts, flattening transparency onto white.
+
+    Shared with the multimedia library's thumbnails: a JPEG cannot carry an
+    alpha channel, and pasting onto white is the same decision both modules
+    want — a transparent PNG on a listing must not turn black.
+    """
     if image.mode in ("RGB",):
         return image
     if image.mode in ("RGBA", "LA", "P"):
@@ -514,6 +519,8 @@ __all__ = [
     "Profile",
     "analyse_image",
     "analyse_pdf",
+    "fit_within",
     "optimise_pdf",
     "process_image",
+    "to_rgb",
 ]

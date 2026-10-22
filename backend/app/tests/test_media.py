@@ -16,10 +16,20 @@ from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Case, CaseLawyer, ChangeLog, Lawyer, MediaAccessLog, User
+from app.core.config import get_settings
+from app.models import (
+    Case,
+    CaseLawyer,
+    ChangeLog,
+    Lawyer,
+    MediaAccessLog,
+    MediaDerivative,
+    User,
+)
 from app.schemas.media import MediaCreate
 from app.services.media import (
     MEDIA_ENTITY,
@@ -29,6 +39,8 @@ from app.services.media import (
     detect_media_type,
     kind_for,
 )
+from app.services.media_processing import build_media_thumbnail
+from app.services.storage import build_media_derivative_key
 from app.services.storage_local import LocalStorage
 
 MEDIA = "/api/v1/media"
@@ -795,3 +807,372 @@ async def test_media_cannot_be_published_to_a_foreign_case(
     )
 
     assert response.status_code == 403
+
+
+# --- duración medida: el cliente no la escribe ------------------------------
+
+
+def _real_png(
+    width: int = 800, height: int = 600, color: tuple[int, int, int] = (90, 40, 70)
+) -> bytes:
+    """A decodable PNG, not just a header: the thumbnail generator needs pixels."""
+    buffer = BytesIO()
+    Image.new("RGB", (width, height), color).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_the_measured_duration_cannot_be_written_from_the_client(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_token: str,
+    admin_user: User,
+    media_storage: LocalStorage,
+) -> None:
+    """PATCH with `duration_seconds` is silently inert.
+
+    The column exists only for a measurement nothing has taken yet: ffprobe is not
+    in the image, and the model comment says the value stays null until something
+    measures it. A browser claiming "the file lasts 90 seconds" is a guess, and a
+    guess must not land in a column documented as a fact. When the measurement
+    exists it will arrive through the processing pipeline, not through PATCH.
+    """
+    service = MediaService(database_session)
+    item = await service.create(MediaCreate(title="Grabación"), admin_user)
+    assert item.duration_seconds is None
+
+    updated = await client.patch(
+        f"{MEDIA}/{item.id}",
+        json={"duration_seconds": 90, "title": "Grabación corregida"},
+        headers=_auth(admin_token),
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["duration_seconds"] is None
+    await database_session.refresh(item)
+    assert item.duration_seconds is None
+    # The legitimate edit in the same payload did land: inert for the field is
+    # not inert for the request.
+    assert item.title == "Grabación corregida"
+
+
+# --- tope de la biblioteca ---------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_an_oversized_library_file_is_refused_with_413(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_token: str,
+    admin_user: User,
+    media_storage: LocalStorage,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The 413 of the library cap, exercised rather than only documented.
+
+    `read(cap + 1)` is the whole reason the check can answer before reading the
+    file; the test pins both the status and that nothing was stored behind the
+    refusal — the row keeps the no-file state the screen already knows to show.
+    """
+    settings = get_settings()
+    monkeypatch.setattr(settings, "max_media_bytes", 32)
+
+    service = MediaService(database_session)
+    item = await service.create(MediaCreate(title="Enorme"), admin_user)
+
+    response = await client.put(
+        f"{MEDIA}/{item.id}/content",
+        files={"file": ("largo.mp4", BytesIO(_mp4(b"a" * 64)), "video/mp4")},
+        headers=_auth(admin_token),
+    )
+
+    assert response.status_code == 413
+    await database_session.refresh(item)
+    assert item.has_file is False
+
+
+@pytest.mark.asyncio
+async def test_a_file_at_the_cap_still_passes(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_token: str,
+    media_storage: LocalStorage,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The refusal is a bound, not an off-by-one: `cap` bytes get through."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "max_media_bytes", len(_mp4()))
+
+    created = await client.post(
+        MEDIA, json={"title": "Justo bajo el tope"}, headers=_auth(admin_token)
+    )
+    uploaded = await client.put(
+        f"{MEDIA}/{created.json()['id']}/content",
+        files={"file": ("justo.mp4", BytesIO(_mp4()), "video/mp4")},
+        headers=_auth(admin_token),
+    )
+
+    assert uploaded.status_code == 200
+    assert uploaded.json()["has_file"] is True
+
+
+# --- miniaturas --------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_thumbnail_is_built_decisively() -> None:
+    """A real image in, one decodable JPEG poster out."""
+    poster = build_media_thumbnail(_real_png(800, 600))
+
+    assert poster.mime_type == "image/jpeg"
+    assert poster.size_bytes > 0
+    with Image.open(BytesIO(poster.content)) as image:
+        assert image.format == "JPEG"
+        assert image.size == (400, 300)
+
+
+@pytest.mark.asyncio
+async def test_a_poster_never_stretches_the_proportion() -> None:
+    assert build_media_thumbnail(_real_png(1600, 200)).width == 400
+    assert build_media_thumbnail(_real_png(1600, 200)).height == 50
+    assert build_media_thumbnail(_real_png(200, 1600)).width == 50
+    assert build_media_thumbnail(_real_png(200, 1600)).height == 400
+
+
+@pytest.mark.asyncio
+async def test_a_poster_of_a_small_image_is_not_upsized() -> None:
+    poster = build_media_thumbnail(_real_png(120, 90))
+
+    assert poster.width == 120
+    assert poster.height == 90
+
+
+@pytest.mark.asyncio
+async def test_bytes_that_are_not_an_image_are_refused_by_the_generator() -> None:
+    from app.services.media_processing import MediaThumbnailError
+
+    with pytest.raises(MediaThumbnailError):
+        build_media_thumbnail(b"MZ\x90\x00 not an image")
+
+
+@pytest.mark.asyncio
+async def test_an_image_upload_produces_one_poster(
+    database_session: AsyncSession, admin_user: User, media_storage: LocalStorage
+) -> None:
+    """One upload, one derivative in its own area, with its own digest."""
+    service = MediaService(database_session)
+    item = await service.create(MediaCreate(title="Fachada"), admin_user)
+    png = _real_png(800, 600)
+
+    await service.attach_file(item, png, "fachada.png")
+
+    derivative = await service.get_thumbnail(item)
+    assert derivative is not None
+    assert derivative.kind == "thumbnail"
+    assert derivative.storage_key == build_media_derivative_key(
+        item.id, "thumbnails", "poster", ".jpg"
+    )
+    assert derivative.mime_type == "image/jpeg"
+    assert (derivative.width, derivative.height) == (400, 300)
+    assert derivative.size_bytes is not None
+    assert await media_storage.exists(derivative.storage_key)
+
+
+@pytest.mark.asyncio
+async def test_a_second_upload_replaces_the_poster_object(
+    database_session: AsyncSession, admin_user: User, media_storage: LocalStorage
+) -> None:
+    """Regenerating replaces, never accumulates copies nobody lists.
+
+    The key is deterministic on purpose — `media/{id}/thumbnails/poster.jpg` — so
+    the second upload overwrites its own output in place instead of growing a
+    family of posters beside it. What changes is the content, not the address.
+    """
+    import hashlib
+
+    service = MediaService(database_session)
+    item = await service.create(MediaCreate(title="Fachada"), admin_user)
+    await service.attach_file(item, _real_png(800, 600), "uno.png")
+    first = await service.get_thumbnail(item)
+    assert first is not None
+    first_sha = first.sha256
+
+    replacement = _real_png(400, 300, color=(20, 120, 80))
+    await service.attach_file(item, replacement, "dos.png")
+
+    rows = (
+        await database_session.execute(
+            select(MediaDerivative).where(MediaDerivative.media_id == item.id)
+        )
+    ).scalars().all()
+    assert len(rows) == 1
+    second = await service.get_thumbnail(item)
+    assert second is not None
+    # Same address (the layout is deterministic), different bytes (the source
+    # changed), and the digest kept is the one of what is actually stored.
+    expected = build_media_thumbnail(replacement)
+    assert second.sha256 != first_sha
+    assert second.sha256 == hashlib.sha256(expected.content).hexdigest()
+    assert await media_storage.exists(second.storage_key)
+
+
+@pytest.mark.asyncio
+async def test_a_video_replaces_the_poster_of_the_previous_image(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_token: str,
+    admin_user: User,
+    media_storage: LocalStorage,
+) -> None:
+    """The poster tracks the current kind, not the upload history.
+
+    A video attached over an image must retire the poster: keeping it would let
+    the route answer a MP4 with the face of the photograph it replaced.
+    """
+    created = await client.post(
+        MEDIA, json={"title": "Pasó a video"}, headers=_auth(admin_token)
+    )
+    media_id = created.json()["id"]
+    await client.put(
+        f"{MEDIA}/{media_id}/content",
+        files={"file": ("foto.png", BytesIO(_real_png()), "image/png")},
+        headers=_auth(admin_token),
+    )
+    service = MediaService(database_session)
+    item = await service.get(UUID(media_id), scope_clause=None)
+    assert item is not None
+    poster_before = await service.get_thumbnail(item)
+    assert poster_before is not None
+    poster_key = poster_before.storage_key
+
+    replaced = await client.put(
+        f"{MEDIA}/{media_id}/content",
+        files={"file": ("video.mp4", BytesIO(_mp4()), "video/mp4")},
+        headers=_auth(admin_token),
+    )
+    assert replaced.status_code == 200
+    assert replaced.json()["kind"] == "video"
+
+    await database_session.refresh(item)
+    assert await service.get_thumbnail(item) is None
+    assert not await media_storage.exists(poster_key)
+
+    gone = await client.get(
+        f"{MEDIA}/{media_id}/thumbnail", headers=_auth(admin_token)
+    )
+    assert gone.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_the_poster_is_served_for_an_image(
+    client: AsyncClient, admin_token: str, media_storage: LocalStorage
+) -> None:
+    created = await client.post(
+        MEDIA, json={"title": "Fachada"}, headers=_auth(admin_token)
+    )
+    media_id = created.json()["id"]
+    await client.put(
+        f"{MEDIA}/{media_id}/content",
+        files={"file": ("f.png", BytesIO(_real_png()), "image/png")},
+        headers=_auth(admin_token),
+    )
+
+    response = await client.get(
+        f"{MEDIA}/{media_id}/thumbnail", headers=_auth(admin_token)
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert response.headers["content-disposition"].startswith("inline")
+    assert response.headers["x-content-type-options"] == "nosniff"
+    with Image.open(BytesIO(response.content)) as image:
+        assert image.size == (400, 300)
+
+
+@pytest.mark.asyncio
+async def test_a_video_and_an_empty_row_have_no_poster(
+    client: AsyncClient, admin_token: str, media_storage: LocalStorage
+) -> None:
+    """A missing poster is a settled 404, not an invented placeholder."""
+    video = await client.post(
+        MEDIA, json={"title": "Grabación"}, headers=_auth(admin_token)
+    )
+    await client.put(
+        f"{MEDIA}/{video.json()['id']}/content",
+        files={"file": ("v.mp4", BytesIO(_mp4()), "video/mp4")},
+        headers=_auth(admin_token),
+    )
+    empty = await client.post(
+        MEDIA, json={"title": "Sólo registrado"}, headers=_auth(admin_token)
+    )
+
+    for media_id in (video.json()["id"], empty.json()["id"]):
+        response = await client.get(
+            f"{MEDIA}/{media_id}/thumbnail", headers=_auth(admin_token)
+        )
+        assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_poster_of_an_unassigned_case_is_not_listed(
+    client: AsyncClient,
+    admin_token: str,
+    other_case: Case,
+    second_lawyer_token: tuple[Lawyer, str],
+    media_storage: LocalStorage,
+) -> None:
+    """The thumbnail is the image of the asset: it takes the same scope."""
+    _, stranger = second_lawyer_token
+    created = await client.post(
+        MEDIA,
+        json={"title": "Inspeccion", "case_id": str(other_case.id)},
+        headers=_auth(admin_token),
+    )
+    await client.put(
+        f"{MEDIA}/{created.json()['id']}/content",
+        files={"file": ("f.png", BytesIO(_real_png()), "image/png")},
+        headers=_auth(admin_token),
+    )
+
+    response = await client.get(
+        f"{MEDIA}/{created.json()['id']}/thumbnail", headers=_auth(stranger)
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_poster_is_not_recorded_in_the_download_trail(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    staff_token: str,
+    media_storage: LocalStorage,
+) -> None:
+    """Scrolling a listing is navigation, not disclosure.
+
+    A page renders up to 24 posters; recording a download row per cell would
+    flood `media_access_logs` with appearance noise until "who read this file"
+    stopped being answerable. The bytes keep being recorded by `/content`.
+    """
+    created = await client.post(
+        MEDIA, json={"title": "Fachada"}, headers=_auth(staff_token)
+    )
+    media_id = created.json()["id"]
+    await client.put(
+        f"{MEDIA}/{media_id}/content",
+        files={"file": ("f.png", BytesIO(_real_png()), "image/png")},
+        headers=_auth(staff_token),
+    )
+
+    response = await client.get(
+        f"{MEDIA}/{media_id}/thumbnail", headers=_auth(staff_token)
+    )
+    assert response.status_code == 200
+
+    rows = (
+        await database_session.execute(
+            select(MediaAccessLog).where(MediaAccessLog.media_id == UUID(media_id))
+        )
+    ).scalars().all()
+
+    assert rows == []

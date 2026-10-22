@@ -36,6 +36,7 @@ from app.api.deps import (
 )
 from app.core.config import get_settings
 from app.core.http_status import (
+    HTTP_413_CONTENT_TOO_LARGE,
     HTTP_416_RANGE_NOT_SATISFIABLE,
     HTTP_422_UNPROCESSABLE,
 )
@@ -243,7 +244,7 @@ async def upload_media_content(
     content = await file.read(cap + 1)
     if len(content) > cap:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=HTTP_413_CONTENT_TOO_LARGE,
             detail=(
                 f"El archivo supera el máximo de {cap // (1024 * 1024)} MB de la "
                 "biblioteca. Un archivo mayor debe subirse por la cola, que todavía "
@@ -340,6 +341,60 @@ actor: Annotated[User, Depends(require_permission("media:download"))],
         content=chunk,
         status_code=served_status,
         media_type=mime,
+        headers=headers,
+    )
+
+
+@router.get("/{media_id}/thumbnail")
+async def download_media_thumbnail(
+    media_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    actor: Annotated[User, Depends(require_permission("media:download"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
+    request: Request,
+) -> Response:
+    """Serve the JPEG poster of an asset, or 404 when it has none.
+
+    The permission is `media:download` because a thumbnail **is** the file for
+    routing purposes: a derived image of the asset, served to a browser. The
+    catalogue already draws the reading/streaming line inside `media:*`, and
+    "previews it" belongs with playing, not with cataloguing.
+
+    **This route writes no `media_access_logs` row, on purpose.** The POST for the
+    listing renders up to 24 posters a screen, and a player scrolling a library is
+    navigating, not opening the file — recording each cell would flood the trail
+    with navigation noise until the column stopped meaning anything. The
+    disclosure of the real bytes keeps being recorded by `/content`.
+
+    A missing poster is a 404 and not a 500 or a placeholder: the caller
+    (the listing cell in the frontend) falls back to its kind icon when the
+    derived image does not exist, which is the honest state of a resource whose
+    original predates the generator or is not an image at all.
+    """
+    service, item = await _require_item(session, actor, scope, media_id)
+    derivative = await service.get_thumbnail(item)
+    if derivative is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El recurso no tiene miniatura",
+        )
+
+    try:
+        content = await service.read_derivative(derivative)
+    except MediaError as error:
+        raise _fail(error) from error
+
+    headers: dict[str, Any] = {
+        "Content-Disposition": _attachment_disposition(
+            item.original_filename, inline=True
+        ),
+        "X-Content-SHA256": derivative.sha256 or "",
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "no-store",
+    }
+    return Response(
+        content=content,
+        media_type=derivative.mime_type,
         headers=headers,
     )
 
@@ -450,6 +505,7 @@ __all__ = [
     "create_media",
     "deactivate_media",
     "download_media",
+    "download_media_thumbnail",
     "list_media",
     "media_history",
     "media_type_label",

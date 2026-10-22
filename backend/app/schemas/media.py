@@ -38,14 +38,22 @@ class MediaCreate(BaseModel):
 
 
 class MediaUpdate(BaseModel):
+    """Editable fields of a resource.
+
+    **`duration_seconds` is not accepted here, on purpose.** The column comment on
+    `MediaItem.duration_seconds` says it stays null until something measures the
+    file, and no measurement exists: the browser cannot report the duration of a
+    video the server has not decoded, so accepting the field would let a client
+    write a guess into a column documented as a measurement. When ffprobe arrives,
+    the value comes back through the processing pipeline — not through PATCH.
+    """
+
     title: str | None = Field(default=None, min_length=3, max_length=255)
     description: str | None = Field(default=None, max_length=4000)
     confidentiality: MediaConfidentiality | None = None
     status: MediaStatus | None = None
     tags: str | None = Field(default=None, max_length=1000)
     case_id: UUID | None = None
-    #: Measured, never guessed: only set when something read the file.
-    duration_seconds: int | None = Field(default=None, ge=0)
 
 
 class MediaResponse(BaseModel):

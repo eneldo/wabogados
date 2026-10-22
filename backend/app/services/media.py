@@ -5,10 +5,10 @@ site, an audio note, a signed PDF kept for reuse.
 
 **It is not the evidence engine.** Evidence is a legal record with an immutable
 original, a custody chain and a retention policy (section 28). Here a file is
-replaced in place when it is corrected, there are no derivatives and no custody
-trail. Keeping the two apart is what allowed this module to accept video without
-reopening `EVIDENCE_MIME_TYPES`, whose narrower list is a contract about legal
-records and was not this module's to change.
+replaced in place when it is corrected, there is no custody trail, and the only
+derivative is a disposable listing poster. Keeping the two apart is what allowed
+this module to accept video without reopening `EVIDENCE_MIME_TYPES`, whose narrower
+list is a contract about legal records and was not this module's to change.
 
 Two rules carry most of the weight:
 
@@ -20,6 +20,10 @@ Two rules carry most of the weight:
   history and its digest survive, and only the actor, the moment and the reason
   are added. The file itself is left in storage, because a deactivated row that
   lost its bytes could not be reactivated.
+- **The poster is the one derivative, and it is disposable by design.** Images get
+  a JPEG thumbnail (`media_processing.py`) regenerated on every upload; a video
+  or audio asset gets none until `ffmpeg` exists. Regenerating is always cheaper
+  than defending — the opposite of the evidence original.
 """
 
 import logging
@@ -31,12 +35,19 @@ from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import StorageTier
-from app.models import MediaAccessLog, MediaItem, User
+from app.models import MediaAccessLog, MediaDerivative, MediaItem, User
 from app.schemas.media import MediaCreate, MediaUpdate
 from app.services.history import record_changes
+from app.services.media_processing import (
+    THUMBNAIL_KINDS,
+    THUMBNAIL_QUALITY,
+    THUMBNAIL_SIDE,
+    build_media_thumbnail,
+)
 from app.services.storage import (
     StorageBackend,
     StorageError,
+    build_media_derivative_key,
     build_media_key,
     build_storage,
 )
@@ -375,9 +386,115 @@ class MediaService:
             fields=TRACKED_MEDIA_FIELDS,
             reason="Archivo cargado",
         )
+
+        # The poster tracks the kind, not the history: attaching a video over an
+        # image must retire the old poster, or the route would keep showing the
+        # (no longer existing) image as the face of the replacement.
+        if item.kind in THUMBNAIL_KINDS:
+            await self._refresh_thumbnail(item, content)
+        else:
+            await self._drop_thumbnail(item)
+
         await self.session.flush()
         await self.session.refresh(item)
         return item
+
+    async def _refresh_thumbnail(self, item: MediaItem, content: bytes) -> None:
+        """Write or replace the JPEG poster of an image asset.
+
+        **Best effort, deliberately.** The bytes of the asset are already safe on
+        storage when this runs, so a failed thumbnail must not cost them their
+        upload: the row survives, the listing falls back to its icon, and the
+        failure is reported instead of swallowed silently. A future regeneration
+        (the `process` job in `media_processing_jobs`) heals the gap without a
+        re-upload.
+        """
+        try:
+            thumbnail = build_media_thumbnail(content)
+        except Exception:
+            logger.exception("No se pudo generar la miniatura de %s", item.id)
+            return
+
+        existing = await self.get_thumbnail(item)
+        storage = self._backend()
+        key = build_media_derivative_key(item.id, "thumbnails", "poster", ".jpg")
+        try:
+            stored = await storage.write(key, thumbnail.content, tier=StorageTier.HOT)
+        except StorageError as error:
+            logger.exception("No se pudo guardar la miniatura de %s: %s", item.id, error)
+            return
+
+        if existing is None:
+            self.session.add(
+                MediaDerivative(
+                    media_id=item.id,
+                    kind="thumbnail",
+                    storage_key=stored.key,
+                    mime_type=thumbnail.mime_type,
+                    size_bytes=stored.size_bytes,
+                    sha256=stored.sha256,
+                    width=thumbnail.width,
+                    height=thumbnail.height,
+                    detail=(
+                        f"miniatura JPEG {THUMBNAIL_SIDE} px para listados "
+                        f"(calidad {THUMBNAIL_QUALITY})"
+                    ),
+                )
+            )
+        else:
+            previous_key = existing.storage_key
+            existing.storage_key = stored.key
+            existing.mime_type = thumbnail.mime_type
+            existing.size_bytes = stored.size_bytes
+            existing.sha256 = stored.sha256
+            existing.width = thumbnail.width
+            existing.height = thumbnail.height
+            if previous_key and previous_key != stored.key:
+                # Committed before the old object goes: an orphan costs space, an
+                # empty storage_key would break every read that runs before the
+                # database write lands. Same trade as `_drop_previous`.
+                try:
+                    await storage.delete(previous_key)
+                except StorageError:
+                    logger.exception(
+                        "No se pudo retirar la miniatura anterior de %s", item.id
+                    )
+        await self.session.flush()
+
+    async def _drop_thumbnail(self, item: MediaItem) -> None:
+        """Retire the poster of a resource that is no longer an image."""
+        existing = await self.get_thumbnail(item)
+        if existing is None:
+            return
+        try:
+            await self._backend().delete(existing.storage_key)
+        except StorageError:
+            logger.exception(
+                "No se pudo retirar la miniatura de %s", item.id
+            )
+        await self.session.delete(existing)
+        await self.session.flush()
+
+    async def get_thumbnail(self, item: MediaItem) -> MediaDerivative | None:
+        """The poster row of an asset, or None when there is none."""
+        if item.id is None:
+            return None
+        result = await self.session.scalars(
+            select(MediaDerivative).where(
+                MediaDerivative.media_id == item.id,
+                MediaDerivative.kind == "thumbnail",
+            )
+        )
+        return result.first()
+
+    async def read_derivative(self, derivative: MediaDerivative) -> bytes:
+        if derivative.storage_key is None:
+            raise MediaError("El derivado no tiene archivo")
+        storage = self._backend()
+        try:
+            return await storage.read(derivative.storage_key)
+        except StorageError as error:
+            raise MediaError(f"No se pudo leer el derivado: {error}") from error
 
     async def read_file(self, item: MediaItem) -> bytes:
         if item.storage_key is None:
