@@ -2,6 +2,28 @@
 
 Fecha: 2026-10-21 (continuación) y 2026-10-22
 
+## Primera corrida verde del CI (2026-10-22)
+
+El remoto quedó conectado (`origin github.com/eneldo/wabogados`, la rama local
+`main` sincronizada con `origin/main`) y `quality-gates.yml` corrió por
+primera vez de verdad:
+
+1. **Corrida #1 (`9a6c447`) falló en gitleaks**: dos detenciones en
+   `backend/app/tests/`, literales de prueba escritos a propósito (una
+   contraseña fuerte del CLI de admin y una antigua del contrato de hashing de
+   passlib). No son secretos. Se exentó el directorio de tests en
+   `.gitleaks.toml` manteniendo `useDefault=true`; verificado en local contra
+   15 commits: *no leaks found*. Commit `e42352a`.
+2. **Corrida #2 (`e42352a`) en verde completa**: Frontend gates y Backend
+   gates, ambos `success`. Es la primera corrida real de la puerta de calidad
+   en la infraestructura, y cierra el pendiente que venía arrastrándose desde
+   la migración Windows → Fedora.
+
+El punto cierra el trio «pendiente de usuario»: la URL del remoto ya es
+facto; siguen pendientes de la firma las credenciales del proveedor S3 de
+respaldo externo (Object Lock sin decidir) y la decisión de la multimedia sin
+escaneo.
+
 ## Restauración de la base real desde el disco externo (2026-10-22)
 
 Fuente: `Seagate Expansion Drive/RESPALDO_PC_ANTIGUO/Docker/`, con
@@ -56,9 +78,10 @@ Con «continúa con todas las recomendaciones», se cerró:
    anchos + setup): usuario temporal creado (dominio no-`.local`), probado y
    borrado (9 usuarios; tabla FKs verificadas: CASCADE/SET NULL, sin RESTRICT).
    Chromium 141 descargado en `~/.cache/ms-playwright`.
-5. **Pendiente de usuario** (no del agente): URL del repo GitHub para el
-   remoto/CI, credenciales del proveedor S3 de respaldo externo, y la
-   decisión de la multimedia sin escaneo.
+5. **Pendiente de usuario** — dos de tres cerrados en la continuación: el remoto
+   GitHub quedó conectado y el CI en verde (ver arriba); queda la decisión de
+   la multimedia sin escaneo, más el par del proveedor (credenciales del S3
+   externo y Object Lock).
 
 ## Respaldo programado activo (2026-10-22, cierre de la recomendación #1)
 
@@ -125,7 +148,8 @@ Docker instalado en el host (29.9.2 + Compose v5.6.1). La suite corrió contra
   ruff limpio, mypy sin errores en 161 ficheros, migraciones
   `upgrade → downgrade → upgrade` verificadas.
 - Pendiente en este entorno: **gates de frontend** (`tsc`, ESLint, build de
-  Next.js) y conectar el remoto para que `quality-gates.yml` corra de verdad.
+  Next.js) y conectar el remoto para que `quality-gates.yml` corra de verdad
+  *(ambos quedaron cerrados el 2026-10-21/22, ver arriba).*
 
 ## Gates de frontend en verde (2026-10-21, tercera parte)
 
@@ -135,8 +159,9 @@ no arrastrar `node_modules` entre sistemas operativos.
 
 Resultado: `npm run lint` limpio, `tsc --noEmit` limpio, `next build` completo
 con las 19 rutas generadas. Los **cuatro gates de frontend pasan en Fedora**;
-el ciclo de migración de entorno queda cerrado. Solo queda conectar el remoto
-GitHub para la primera corrida real de `quality-gates.yml`.
+el ciclo de migración de entorno queda cerrado. Solo quedaba conectar el remoto
+GitHub para la primera corrida real de `quality-gates.yml` *(cerrado: corrida
+verde #2 del 2026-10-22, ver arriba)*.
 
 Nueva entrada en `KNOWN_ISSUES.md`: 5 avisos high de `npm audit`, todos en la
 cadena de lint (`eslint-config-next`→`fast-glob`→`micromatch`→`braces`),

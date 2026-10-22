@@ -80,10 +80,12 @@ ClamAV (pendiente Fase 7)
 - Sin ensayo de restauración con la aplicación caída
 - Si el token de acceso ya expiró, cerrar sesión no puede revocar el refresco
   (ADR-060); el token sigue vivo hasta caducar
-- CI/CD: existe `.github/workflows/quality-gates.yml` (gitleaks, ruff, mypy,
+- CI/CD: `.github/workflows/quality-gates.yml` (gitleaks, ruff, mypy,
   migraciones reversibles, pytest con umbral 80 % de cobertura, builds de imagen
-  y gates de frontend). El repo aún no tiene remoto publicado: la primera corrida
-  real queda pendiente
+  y gates de frontend), sobre el remoto `github.com/eneldo/wabogados`.
+  **Primera corrida real en verde (corrida #2, `e42352a`, 2026-10-22)**: la
+  corrida #1 falló en gitleaks por dos literales de prueba y se exentó el
+  directorio de tests en `.gitleaks.toml` (useDefault intacto).
 
 ## Funcionalidades terminadas
 Ver IMPLEMENTED_FEATURES.md
