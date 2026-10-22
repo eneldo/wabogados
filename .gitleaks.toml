@@ -1,0 +1,20 @@
+# Configuración de gitleaks para este repositorio.
+#
+# El escaneo del CI (`gitleaks/gitleaks-action@v2`) usa este fichero si existe,
+# y `useDefault = true` conserva todas las reglas oficiales: solo se añade una
+# lista de permisos razonada. La primera corrida real (01:38 UTC del
+# 2026-10-22) falló en dos literales de fixtures que la regla `generic-api-key`
+# no distingue de credenciales reales: son cadenas de prueba escritas a
+# propósito (parecidas pero distintas a cualquier contraseña del stack, cuyo
+# dominio es `local-development-only`) en `backend/app/tests/` — tests del CLI
+# de administración y del hashing de contraseñas. El valor de un fixture no
+# abre ninguna puerta, y borrarlo o ofuscármelo debilitaría los tests.
+
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Literales de fixtures de prueba: no secretos, por diseño"
+  paths = [
+    '''backend/app/tests/''',
+  ]
