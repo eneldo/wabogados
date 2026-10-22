@@ -1,5 +1,22 @@
 <!-- Nuevos aprendizajes debajo de esta línea -->
 
+- **2026-10-22 — Un pin de imagen no es un archivo: los registries pueden retirar lo que se fija:**
+  **Contexto:** Al levantar el stack restaurado, `minio/minio` dio «pull access
+  denied» en Docker Hub y en Quay a pesar de pulls de control correctos con
+  otras imágenes. No era rate limit ni red: MinIO retiró sus imágenes oficiales
+  de ambos registries en 2026 y el comunitario quedó «solo código fuente».
+  **Aprendizaje:** Un pin por etiqueta es una referencia a un objeto que un
+  tercero puede destruir; la dependencia real es «la imagen que yo tengo en el
+  host». Para una imagen crítica: fijar por **digest** (`image@sha256:...`),
+  conservar una copia propia (`docker save`) o construir desde código propio —
+  y no celebrar que «las pruebas pasan» en un entorno por derecho de haber
+  descargado entonces, porque el reproducibilidad se mide desde cero.
+  **Aplicación futura:** Si el stack vuelve a necesitar un objeto-S3 local para
+  probar el camino `STORAGE_BACKEND=s3`, no depender de un registry vivo:
+  guardar una copia de la imagen en `infra/images/` o sustituirla por un
+  contenedor propio que hable S3. El destino del respaldo externo, mientras
+  tanto, ya no es MinIO: es un proveedor S3 de la firma.
+
 - **2026-10-21 — Migrar un proyecto de Windows a Linux deja dos capas de CRLF, no una:**
   **Contexto:** Al auditar tras cambiar de Windows a Fedora había 24 ficheros
   tracked con CRLF en el árbol de trabajo, ~6.500 líneas de diff "modificado",

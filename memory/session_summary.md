@@ -1,6 +1,38 @@
 # Última sesión
 
-Fecha: 2026-10-21
+Fecha: 2026-10-21 (continuación) y 2026-10-22
+
+## Restauración de la base real desde el disco externo (2026-10-22)
+
+Fuente: `Seagate Expansion Drive/RESPALDO_PC_ANTIGUO/Docker/`, con
+`inventario_sha256_final.csv` que firma cada artefacto. Los dos digests
+salieron idénticos antes de escribir nada.
+
+1. **La base era un cluster dump de pg_dumpall 17.6**, no un dump de una base:
+   reconstruye roles (con la contraseña SCRAM del PC antiguo) y dos bases, una
+   basura (`wabogadoes`). Se restauró **solo la sección de `wabogados`**
+   (líneas 193–4395, con su par `\restrict`/`\unrestrict` propio) con
+   `ON_ERROR_STOP=1`: el rol mantiene la contraseña local del compose y el
+   backend autentica sin cambios. Verificación TCP del rol: `wabogados|wabogados` OK.
+2. **Inventario restaurado = documentado**: 43 tablas · 9 usuarios · 5 clientes
+   · 5 expedientes · 4 eventos · 3 documentos · 246 filas de auditoría
+   (el dump es del 17 de octubre, doce más que el ensayo del 5).
+   Alembic: `e9f0a1b2c3d4` en el dump → `upgrade head` (`b2c3d4e5f6a7`,
+   46 tablas) → downgrade y re-upgrade verificados sobre los datos.
+3. **El almacén de objetos era otro artefacto**: `Volumenes/wabogados_evidencias.tar.gz`,
+   digest verificado contra el inventario. Extraído al volumen
+   `wabogados_v1_master_storage_data`: **21 archivos**, uid 10001 = `app` del
+   contenedor. `verify_integrity --mode full`: 0 ausentes · 0 corruptas · OK.
+4. **PostgreSQL 5432 del host lo ocupa el servicio systemd de Fedora
+   (postgresql 18.6)** — no se tocó; el contenedor del proyecto mapea 5433
+   (el mapeo solo es de host, el backend interno no cambia). Recordado para
+   herramientas del host que quieran ver la base: puerto `5433`.
+5. **Stack levantado y sano sin MinIO**: `backend·frontend·postgres·redis·
+   evidence-worker` todos healthy; `health/ready` = `{"status":"ready",
+   "database":"up"}` y frontend 200. Los dos servicios `minio*` quedaron fuera
+   a propósito (ver KNOWN_ISSUES: las imágenes oficiales ya no se publican en
+   ningún registry, el pin de compose apuntaba a una etiqueta muerta y el
+   almacenamiento real es `STORAGE_BACKEND=local`).
 
 ## Auditoría y migración Windows → Fedora: normalización y cierre del alcance de mensajes (2026-10-21)
 

@@ -54,8 +54,24 @@
 - **PowerShell 5.1 corrompe la salida binaria nativa.** Un `pg_dump` redirigido con
   `>` produjo un archivo que `pg_restore` rechazó. Para binario usar `cmd /c` o
   `docker cp`.
-- **MinIO sin verificar.** Este entorno no puede descargar `minio/minio`. El
-  mecanismo S3 sí se probó contra un endpoint HTTP real.
+- **Las imágenes oficiales de MinIO ya no se pueden descargar (2026-10-21).**
+  MinIO eliminó `minio/minio` y `minio/mc` de Docker Hub en septiembre de 2026 y
+  cerró Quay a pulls anónimos poco después; la comunidad queda «solo código
+  fuente» y el proyecto está archivado. Verificado desde este host: el repo
+  responde 404/401 en Docker Hub y en Quay con token anónimo, y un pull de
+  control (centos en Quay, redis en Docker Hub) funciona. **Impacto:**
+  `compose.yaml` usa MinIO solo para `minio-backup` (destino provisional del
+  respaldo externo) y como S3 de recambio — el almacenamiento en producción
+  corre con `STORAGE_BACKEND=local` sobre el volumen `storage_data`, así que el
+  stack funciona sin ellos y ya se levantó excluyendo explícitamente los dos
+  servicios. Además, el pin de `compose.yaml`
+  (`RELEASE.2025-04-22T22-12-26Z`) no es verificable contra ningún catálogo:
+  el repositorio entero desapareció, así que la etiqueta o nunca existió o no
+  está ya resuelta — en cualquier caso es un pin muerto. Lo que
+  sigue pendiente de la firma: elegir el destino real del respaldo externo (un
+  proveedor S3 cualquiera) y, si se mantiene MinIO en el stack para pruebas,
+  decidir su sustituto (fork `pgsty/silo`, contenedor de Chainguard, o
+  construido desde el código fuente).
 - **`verify_integrity` completo es caro.** Descarga todos los bytes.
 - **Los cuerpos `run()` de los CLI no tienen test automatizado.** Los argumentos
   y los códigos de salida sí están cubiertos; la lógica se ha ejecutado a mano en
