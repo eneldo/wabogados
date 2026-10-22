@@ -7,6 +7,7 @@ import {
   UploadMediaButton,
 } from "@/components/admin/multimedia/media-actions";
 import { EditMediaButton, MediaForm } from "@/components/admin/multimedia/media-form";
+import { MediaThumb } from "@/components/admin/multimedia/media-thumb";
 import { MediaDetail } from "@/components/admin/multimedia/media-detail";
 import { Button } from "@/components/admin/form-controls";
 import { FilterBar, FilterField, PageHeader, Pager } from "@/components/admin/page-furniture";
@@ -336,32 +337,52 @@ function MediaRow({
   return (
     <tr data-accent={accent} className="row-enter">
       <th scope="row" className="py-4 pr-4 font-normal">
-        <Link
-          href={href}
-          className="row-title block break-words hover:text-wax hover:underline"
+        <div
+          className={
+            item.has_file && item.kind === "image"
+              ? "flex items-start gap-3"
+              : undefined
+          }
         >
-          {item.title}
-        </Link>
-        <span className="mt-1 block max-w-[24rem] text-xs text-ink-muted">
-          {item.has_file ? (
-            <>
-              {item.original_filename ?? "archivo"} ·{" "}
-              <span className="text-ink-faint">{formatBytes(item.size_bytes ?? 0)}</span>
-            </>
-          ) : (
-            <span className="text-brass">Registrado, sin archivo</span>
-          )}
-        </span>
-        {item.tags ? (
-          <span className="mt-1 block max-w-[24rem] text-xs text-ink-faint">
-            {item.tags}
+          {/* The poster renders only when the derived thumbnail exists: a
+              resource whose kind has no poster (or predates the generator)
+              simply reads as today, without a broken frame where one would be. */}
+          {item.has_file && item.kind === "image" ? (
+            <MediaThumb
+              id={item.id}
+              alt=""
+              className="size-14 shrink-0 rounded-card border border-rule object-cover"
+            />
+          ) : null}
+          <span className="min-w-0">
+            <Link
+              href={href}
+              className="row-title block break-words hover:text-wax hover:underline"
+            >
+              {item.title}
+            </Link>
+            <span className="mt-1 block max-w-[24rem] text-xs text-ink-muted">
+              {item.has_file ? (
+                <>
+                  {item.original_filename ?? "archivo"} ·{" "}
+                  <span className="text-ink-faint">{formatBytes(item.size_bytes ?? 0)}</span>
+                </>
+              ) : (
+                <span className="text-brass">Registrado, sin archivo</span>
+              )}
+            </span>
+            {item.tags ? (
+              <span className="mt-1 block max-w-[24rem] text-xs text-ink-faint">
+                {item.tags}
+              </span>
+            ) : null}
+            {item.is_active ? null : (
+              <span className="mt-1 block text-xs text-ink-faint">
+                Desactivado el {formatDate(item.deleted_at)}
+              </span>
+            )}
           </span>
-        ) : null}
-        {item.is_active ? null : (
-          <span className="mt-1 block text-xs text-ink-faint">
-            Desactivado el {formatDate(item.deleted_at)}
-          </span>
-        )}
+        </div>
       </th>
       <td className="py-4 pr-4 align-top">
         <Chip tone={mediaKindTone(item.kind)}>{mediaKindLabel(item.kind)}</Chip>

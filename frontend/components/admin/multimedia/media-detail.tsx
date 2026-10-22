@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/admin/form-controls";
+import { MediaThumb } from "@/components/admin/multimedia/media-thumb";
 import { formatBytes } from "@/lib/format";
 import type { MediaHistoryEntry, MediaRecord } from "@/lib/types";
 
@@ -11,9 +12,12 @@ import type { MediaHistoryEntry, MediaRecord } from "@/lib/types";
  * The detail drawer of a resource: what it is, and the file itself.
  *
  * The player is a plain `<video>` / `<audio>` / `<img>` chosen by the kind the
- * server derived from the bytes. Nothing is transcoded in this project, so the
- * browser is asked to play the original — which is why the source is the streaming
- * route and not a derived preview that does not exist.
+ * server derived from the bytes. Nothing is transcoded, so the browser plays the
+ * original through the streaming route — except for images, which open with the
+ * 400 px poster the server derives on upload and only read the original when
+ * that poster does not exist (assets from before the generator). The full bytes
+ * are one click away through "Abrir en otra pestaña", which is where reading
+ * detail belongs anyway.
  *
  * **Confidential material is announced, not hidden.** A confidential recording is
  * still playable: refusing it would make the classification a lock rather than a
@@ -98,14 +102,12 @@ export function MediaDetail({
               ) : null}
 
               {item.kind === "image" ? (
-                // `next/image` is the wrong tool here and its lint rule is right
-                // about the cost but not about the case: the image is behind an
-                // authenticated route, so there is no public URL for the optimizer
-                // to fetch and no width it could know in advance. The file is
-                // served with `nosniff` and the type the server detected, so the
-                // browser is not told what this is by whoever named the file.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={source} alt={item.title} className="w-full rounded-card border border-rule" />
+                <MediaThumb
+                  id={item.id}
+                  alt={item.title}
+                  fallbackSrc={source}
+                  className="w-full rounded-card border border-rule"
+                />
               ) : null}
 
               {item.kind === "document" ? (
