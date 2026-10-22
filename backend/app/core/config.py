@@ -85,6 +85,15 @@ class Settings(BaseSettings):
     max_media_bytes: int = 500 * 1024 * 1024
     storage_backend: Literal["local", "s3"] = "local"
 
+    # Antivirus engine (see KNOWN_ISSUES.md and docs/RESTORE.md §8 for the
+    # decision trail). `antivirus_host` None disables the scan; when set, every
+    # upload pipeline is fail closed: an available-but-infected payload is
+    # discarded and an unavailable engine refuses the upload or postpones the
+    # queued work, never accepts it silently.
+    antivirus_host: str | None = None
+    antivirus_port: int = 3310
+    antivirus_timeout_seconds: float = 60.0
+
     # S3 / MinIO. Credentials are never committed; use the environment.
     s3_endpoint_url: str | None = None
     s3_access_key: str | None = None

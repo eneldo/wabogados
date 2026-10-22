@@ -22,6 +22,7 @@ from sqlalchemy import select
 
 from app.db.session import SessionFactory
 from app.models import EvidenceProcessingJob
+from app.services.antivirus import AntivirusUnavailable
 from app.services.evidence import EvidenceError, EvidenceService, JobStatus
 
 EXIT_OK = 0
@@ -76,6 +77,11 @@ async def process_once(worker: str, limit: int) -> tuple[int, int]:
             try:
                 await service.run_queued_job(job, worker=worker)
                 processed += 1
+            except AntivirusUnavailable as error:
+                # Postponed work, not a failure: the job stays RUNNING and the
+                # loop picks it up again, so an engine outage never turns real
+                # evidence into `FAILED` evidence.
+                print(f"[APLAZADO] trabajo {job.id}: antivirus no disponible ({error})")
             except EvidenceError as error:
                 failed += 1
                 print(f"[ERROR] trabajo {job.id}: {error}")

@@ -41,6 +41,12 @@ from app.models import (
     EvidenceProcessingJob,
     User,
 )
+from app.services.antivirus import (
+    AntivirusUnavailable,
+    Scanner,
+    ScanResult,
+    build_scanner,
+)
 from app.services.evidence_processing import (
     Derivative,
     ProcessingError,
@@ -111,6 +117,8 @@ class EventType(StrEnum):
     DOWNLOADED_ORIGINAL = "downloaded_original"
     DOWNLOADED_DERIVATIVE = "downloaded_derivative"
     VIEWED = "viewed"
+    ANTIVIRUS_SCANNED = "antivirus_scanned"
+    ANTIVIRUS_INFECTED = "antivirus_infected"
 
 
 class JobStatus(StrEnum):
@@ -159,7 +167,10 @@ class EvidenceService:
     """Create, process and hand out evidence. Never alters an original."""
 
     def __init__(
-        self, session: AsyncSession, storage: StorageBackend | None = None
+        self,
+        session: AsyncSession,
+        storage: StorageBackend | None = None,
+        scanner: Scanner | None = None,
     ) -> None:
         self.session = session
         self.settings = get_settings()
@@ -167,6 +178,10 @@ class EvidenceService:
             self.storage = storage
         else:
             self.storage = build_storage(self.settings)
+        # `scanner=None` means `build from settings`; an engine is only present
+        # when `antivirus_host` is configured. No engine configured → the scan
+        # step is a documented no-op, not a silent promise.
+        self.scanner = scanner if scanner is not None else build_scanner(self.settings)
 
     # -- scope --------------------------------------------------------------
 
@@ -414,6 +429,29 @@ class EvidenceService:
         evidence.status = str(EvidenceStatus.PROCESSING)
         await self.session.flush()
 
+        # Antivirus before any derivative: there is no reason to spend storage
+        # work on a payload that will not survive the verdict.
+        try:
+            verdict = await self._scan(evidence, content, actor=actor)
+        except AntivirusUnavailable as error:
+            # Fail closed: the stored object goes, the request fails and the
+            # operator retries when the engine is healthy. The object and the
+            # row cannot drift, because the raising aborts the whole request.
+            await self._discard_original(evidence_file)
+            raise EvidenceError(
+                "Antivirus no disponible: la subida se rechaza (fallo cerrado)"
+            ) from error
+        if verdict is not None and not verdict.clean:
+            await self._quarantine(evidence, evidence_file, verdict, actor=actor)
+            return ProcessingOutcome(
+                derivatives=0,
+                queued=False,
+                detail=(
+                    f"Evidencia rechazada por el antivirus ({verdict.signature}); "
+                    "copia local descartada"
+                ),
+            )
+
         try:
             derivatives = await self._produce(evidence, evidence_file, content)
         except ProcessingError as error:
@@ -446,6 +484,90 @@ class EvidenceService:
             is_signed_pdf=evidence_file.is_signed_pdf,
             signature_broken=evidence_file.signature_broken,
         )
+
+    # -- antivirus ----------------------------------------------------------
+
+    async def _scan(
+        self, evidence: Evidence, content: bytes, *, actor: User | None
+    ) -> ScanResult | None:
+        """Scan one payload when the engine is configured.
+
+        Returns None when there is no engine (documented policy) and the verdict
+        otherwise. `_scan` is deliberate about which failures it swallows: only
+        `AntivirusUnavailable` travels as itself, because the caller must be
+        able to distinguish `the file is bad` from `the engine is down` — the
+        first terminates the evidence, the second must not.
+        """
+        if self.scanner is None:
+            return None
+
+        try:
+            verdict = await self.scanner.scan(content)
+        except AntivirusUnavailable:
+            raise
+
+        self.record_event(
+            evidence,
+            EventType.ANTIVIRUS_SCANNED,
+            actor_id=actor.id if actor else None,
+            detail=verdict.detail,
+        )
+        if verdict.clean:
+            logger.info("antivirus limpio en evidencia %s", evidence.id)
+        else:
+            # A positive is an operationally important event: it deserves the
+            # same visibility an operator would give a 500, without waiting.
+            logger.warning(
+                "Antivirus detectó %s en la evidencia %s",
+                verdict.signature,
+                evidence.id,
+            )
+        return verdict
+
+    async def _discard_original(self, evidence_file: EvidenceFile) -> None:
+        """Delete the stored object that carries the storage key of a row.
+
+        Only used when the copy must disappear (fail closed, quarantine). A
+        storage failure here cannot block the quarantine: the verdict is
+        already known, so the deletion is logged loudly for an operator to
+        finish by hand rather than retried forever.
+        """
+        try:
+            await self.storage.delete(evidence_file.storage_key)
+        except StorageError as error:
+            logger.error(
+                "no se pudo descartar la copia %s: %s",
+                evidence_file.storage_key,
+                error,
+            )
+
+    async def _quarantine(
+        self,
+        evidence: Evidence,
+        evidence_file: EvidenceFile,
+        verdict: ScanResult,
+        *,
+        actor: User | None = None,
+    ) -> None:
+        """Dispose of the copy and leave the verdict in the custody trail.
+
+        The status is QUARANTINED and stays queryable forever: the audit trail is
+        the point, not a sixth status that pretends nothing happened.
+        """
+        if evidence_file.id is not None:
+            await self._discard_original(evidence_file)
+        evidence.status = str(EvidenceStatus.QUARANTINED)
+        self.record_event(
+            evidence,
+            EventType.ANTIVIRUS_INFECTED,
+            actor_id=actor.id if actor else None,
+            to_value=str(EvidenceStatus.QUARANTINED),
+            detail=(
+                f"Positivo ({verdict.signature}); copia local descartada. "
+                f"Veredicto: {verdict.detail}"
+            ),
+        )
+        await self.session.flush()
 
     async def _produce(
         self, evidence: Evidence, evidence_file: EvidenceFile, content: bytes
@@ -570,6 +692,32 @@ class EvidenceService:
             evidence.status = str(EvidenceStatus.FAILED)
             await self.session.flush()
             raise EvidenceError(str(error)) from error
+
+        # Antivirus before producing anything: a positive must not generate
+        # derivatives. It is the same engine and the same verdict the inline
+        # path applies; the only difference is who waits for the result.
+        try:
+            verdict = await self._scan(evidence, content, actor=None)
+        except AntivirusUnavailable:
+            # Postpone, not fail: the job keeps RUNNING (attempts already
+            # counted) and this worker loop claims it again next cycle. An
+            # engine outage is not a processing error; failing real evidence
+            # here would blame the file when only the scanner is missing.
+            raise
+        if verdict is not None and not verdict.clean:
+            await self._quarantine(evidence, evidence_file, verdict)
+            job.status = str(JobStatus.FAILED)
+            job.error = f"Antivirus: {verdict.signature}"
+            job.finished_at = datetime.now(UTC)
+            await self.session.flush()
+            return ProcessingOutcome(
+                derivatives=0,
+                queued=False,
+                detail=(
+                    f"Evidencia rechazada por el antivirus ({verdict.signature}); "
+                    "copia local descartada"
+                ),
+            )
 
         try:
             derivatives = await self._produce(evidence, evidence_file, content)

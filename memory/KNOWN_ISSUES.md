@@ -5,11 +5,20 @@
   (ReDoS por agotamiento de pila). Esas dependencias son devDependencies del
   linting: **no viajan a producción**. No se aplicó `--force` (rompería la
   config de ESLint); se resuelven con el upgrade de Next/eslint-config-next.
-- **No hay motor antivirus.** La validación de evidencia es estructural:
-  firmas, formatos prohibidos, políglotos y dimensional. Eso detecta ejecutables
-  disfrazados y bombas de descompresión, **no malware**. Una firma que exige
-  análisis antivirus necesita ClamAV o un proveedor externo, y eso implica decidir
-  dónde se analiza y qué hacer con un positivo.
+- **Motor antivirus activo en evidencias y documentos (2026-10-21).** Hasta hoy
+  la validación era solo estructural (firmas, formatos prohibidos, políglotos,
+  dimensional): detecta ejecutables disfrazados y bombas de descompresión,
+  **no malware**. Con la decisión de la firma (asíncrono en worker) quedó
+  integrado el motor ClamAV 1.5.4 (`app/services/antivirus.py`, contenedor
+  `clamav` en compose, cliente INSTREAM sin dependencias nuevas). Política:
+  positivo → copia descartada, evidencia `quarantined` con veredicto en la
+  trazabilidad, y falla cerrada si el motor no contesta (la subida se rechaza;
+  el trabajo en cola se **aplaza**, no se fracasa). Límites que quedan:
+  - **La biblioteca multimedia no escanea** (vídeo hasta 500 MB): sin worker
+    de cola propio, un escaneo síncrono bloquearía la petición. Pendiente de
+    decisión de la firma sobre hasta dónde llega el escaneo.
+  - Un `ANTIVIRUS_HOST` sin valor deshabilita el escaneo por completo, sin
+    desconocimiento: es la configuración actual de los tests.
 - **La firma digital PDF se detecta pero no se valida.** Se informa de si existe
   una firma y de si su `ByteRange` cubre el archivo, lo que detecta un documento
   modificado después de firmarse. No se comprueba la validez criptográfica.

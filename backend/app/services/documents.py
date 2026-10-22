@@ -9,8 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_user_permission_names
+from app.core.config import get_settings
 from app.models import Case, Document, DocumentDownload, DocumentVersion, User
 from app.schemas.documents import DocumentCreate, DocumentUpdate
+from app.services.antivirus import (
+    AntivirusUnavailable,
+    Scanner,
+    build_scanner,
+)
 from app.services.history import record_changes
 from app.services.storage import StorageBackend, StorageError, build_storage
 from app.services.uploads import UploadValidationError, validate_upload
@@ -45,10 +51,22 @@ def visible_visibilities(user: User) -> tuple[str, ...]:
 
 class DocumentService:
     def __init__(
-        self, session: AsyncSession, storage: StorageBackend | None = None
+        self,
+        session: AsyncSession,
+        storage: StorageBackend | None = None,
+        scanner: Scanner | None = None,
     ) -> None:
         self.session = session
+        self.settings = get_settings()
         self.storage = storage or build_storage()
+        # Same engine configurable as `EvidenceService`: settings decide, tests
+        # inject. Documents have no worker queue, so here the verdict is always
+        # part of the request (documents are small; MASTER_PROMPT caps them at
+        # 20 MB) and awaiting clamd is not the blocking hazard the evidence
+        # pipeline has for heavy media.
+        self.scanner = (
+            scanner if scanner is not None else build_scanner(self.settings)
+        )
 
     def _visibility_filter(self, allowed: tuple[str, ...]) -> ColumnElement[bool]:
         if not allowed:
@@ -333,6 +351,24 @@ class DocumentService:
                 "El almacenamiento no devolvió el contenido esperado; "
                 "la versión no se ha registrado"
             )
+
+        # Antivirus, same decision as the evidence pipeline (2026-10-21): an
+        # infected payload never becomes a version, and an engine outage fails
+        # closed — the copy goes away, the operator retries when it is healthy.
+        if self.scanner is not None:
+            try:
+                verdict = await self.scanner.scan(content)
+            except AntivirusUnavailable as error:
+                await self.storage.delete(key)
+                raise DocumentError(
+                    "Antivirus no disponible: la versión no se registra (fallo cerrado)"
+                ) from error
+            if not verdict.clean:
+                await self.storage.delete(key)
+                raise DocumentError(
+                    f"Rechazada por el antivirus ({verdict.signature}); "
+                    "copia local descartada"
+                )
 
         previous = (
             await self.session.execute(
