@@ -22,7 +22,6 @@ Se aplicaron las correcciones de la auditoría, en tres commits:
    salió del expediente seguía leyendo hilos y descargando adjuntos) estaba
    escrito en el disco sin confirmar y **enterrado bajo ~6.500 líneas de churn
    de EOL**. Quedó aislado como commit propio con sus 167 líneas de pruebas.
-   **Pendiente: este entorno no tiene Docker, la suite no se ha ejecutado.**
 3. **Memoria corregida** (exactamente el patrón de "dato escrito y nunca
    releído"): `project_context` creía que no había CI (existe `quality-gates.yml`
    desde octubre) y que el rate limiter seguía en memoria (Redis se cerró el
@@ -32,6 +31,21 @@ Se aplicaron las correcciones de la auditoría, en tres commits:
    errata histórica.
 
 Copia de seguridad del estado previo en `.tmp/pre-audit-backup-2026-10-21.patch`.
+
+## Verificación de los gates en Fedora (2026-10-21, segunda parte)
+
+Docker instalado en el host (29.9.2 + Compose v5.6.1). La suite corrió contra
+`compose.test.yaml` con PostgreSQL y Redis reales:
+
+- **`815 pruebas, 86,99 % de cobertura`**, incluidas las 5 nuevas de alcance de
+  mensajería — la puerta de seguridad del fix `128881f` está en verde.
+- `ruff` y `mypy` estricto: **2 hallazgos en los ficheros del fix** (imports sin
+  ordenar, dos líneas >100) y **1 preexistente** en esta instalación
+  (`EMAIL` sin anotación en `create_admin.py`). Corregidos en `e2c705e`:
+  ruff limpio, mypy sin errores en 161 ficheros, migraciones
+  `upgrade → downgrade → upgrade` verificadas.
+- Pendiente en este entorno: **gates de frontend** (`tsc`, ESLint, build de
+  Next.js) y conectar el remoto para que `quality-gates.yml` corra de verdad.
 
 **Pendientes de esta migración de entorno**: instalar Docker y el toolchain de
 backend en Fedora, ejecutar la suite completa contra `compose.test.yaml`, y
