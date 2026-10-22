@@ -779,3 +779,23 @@
   **Contexto:** `-replace` encadenado con `| Out-Null` dejo `$c` en `$null` y `WriteAllText` vacio `test_messaging.py`: 960 de 1309 lineas. Se recupero de la imagen `wabogados_v1_master-backend:latest`, de 13 horas antes. La suite completa pasa, **pero el fichero no es el que habia y eso no se puede demostrar**.
   **Aprendizaje:** Un conjunto de pruebas en verde **no** prueba que el codigo bajo prueba sea el que crees. Y cuando la recuperacion viene de una instantanea antigua, el resultado es *plausible*, que es peor que estar roto porque deja de pedir verificacion.
   **Aplicación futura:** Comprobar (Get-Item).Length sobre todo fichero escrito con un script. Y tratar la ausencia de git como un hallazgo de seguridad activo, no como una molestia de método: mientras no exista, cualquier error destructivo de edición es irreversible y se recupera de una instantánea vieja, que es peor que no recuperar.
+
+- **2026-10-22 — cap_drop ALL contra imágenes con init propio (ClamAV):**
+  **Contexto:** Al integrar `clamav/clamav:1.5.4-debian13-slim` con la postura
+  de seguridad del proyecto (`security_opt: no-new-privileges`, `cap_drop: ALL`),
+  el init de la imagen entró en bucle de reinicio con cuatro errores distintos y
+  sucesivos: sin CHOWN (volver a ajustar los dueños), sin DAC_READ_SEARCH
+  (enumerar un volumen que queda en 0700 tras el primer pase), sin
+  DAC_OVERRIDE (freshclam escribe un log propiedad del usuario clamav) y sin
+  SETUID/SETGID (bajar privilegios a clamav para ejecutar clamd).
+  **Aprendizaje:** El principio "cap_drop ALL" es correcto pero insuficiente por
+  sí solo: las imágenes con entrypoint que ajustan permisos y bajan de
+  usuario necesitan un conjunto mínimo legado y comentado capability por
+  capability. Además, el healthcheck que documenta una variante de la imagen
+  no sirve para otra (debian13-slim trae clamdcheck.sh, no clamdcheck.py):
+  comprobar lo que la imagen trae, no lo que los docs de otra dicen.
+  **Aplicación futura:** Ante una imagen con init propio y cap_drop ALL,
+  arrancar con `docker run` en un shell para inspeccionar dueños/modos de los
+  directorios tocados por el init, y añadir exactamente las capacidades del
+  defendido en compose con comentarios. Falla cerrada nunca requiere
+  adivinanzas: reproduce el error, no des la pausa completa.

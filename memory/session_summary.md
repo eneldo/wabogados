@@ -34,6 +34,32 @@ salieron idénticos antes de escribir nada.
    ningún registry, el pin de compose apuntaba a una etiqueta muerta y el
    almacenamiento real es `STORAGE_BACKEND=local`).
 
+## Fábrica completa del 2026-10-22 (continuación): recomendaciones dadas
+
+Con «continúa con todas las recomendaciones», se cerró:
+
+1. **Motor antivirus ClamAV decido e integrado** (commit `9a97bd0`): decisión de
+   la firma => asíncrono en worker; el positivo descarta la copia y marca
+   `quarantined` con veredicto en la trazabilidad; y el motor caído es *fallo
+   cerrado* (la subida se rechaza, el trabajo en cola se aplaza, no se fracasa).
+   Cliente INSTREAM propio (`services/antivirus.py`), evidencias + documentos
+   + worker; servicio `clamav` 1.5.4-debian13-slim en compose (con las 5
+   capacidades mínimas que pide su init, comentadas). MinIO: servicios
+   comentados en compose (reversibles, con porqué en el fichero). 830 pruebas
+   verdes, cobertura 87,15 %; escaneo real verificado (limpio=OK, EICAR=detectado).
+   *Alcance explícito no cubierto*: biblioteca multimedia (vídeo sin cola).
+2. **Skills** del catálogo instaladas en `.opencode/skills/` y descubiertas
+   (commit `7e7b5d1`).
+3. **`.env` del host**: `POSTGRES_PORT=5433` fijado para que `compose up`
+   nunca vuelva a chocar con el PostgreSQL 18.6 de systemd (no versionado).
+4. **e2e de Playwright en verde con login real** (56 pruebas de layout en 4
+   anchos + setup): usuario temporal creado (dominio no-`.local`), probado y
+   borrado (9 usuarios; tabla FKs verificadas: CASCADE/SET NULL, sin RESTRICT).
+   Chromium 141 descargado en `~/.cache/ms-playwright`.
+5. **Pendiente de usuario** (no del agente): URL del repo GitHub para el
+   remoto/CI, credenciales del proveedor S3 de respaldo externo, y la
+   decisión de la multimedia sin escaneo.
+
 ## Respaldo programado activo (2026-10-22, cierre de la recomendación #1)
 
 Circuito completo ya en marcha, **con datos reales y verificado end-to-end**:
