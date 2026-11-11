@@ -20,21 +20,21 @@ export function ColumnsIllustration() {
       >
         <defs>
           <linearGradient id="wb-bg" x2="1" y2="1">
-            <stop stopColor="#314b52" />
-            <stop offset="1" stopColor="#10262e" />
+            <stop stopColor="#353b4b" />
+            <stop offset="1" stopColor="#1b202c" />
           </linearGradient>
           <linearGradient id="wb-stone">
-            <stop stopColor="#687772" />
-            <stop offset=".5" stopColor="#b3b4a5" />
-            <stop offset="1" stopColor="#576964" />
+            <stop stopColor="#616878" />
+            <stop offset=".5" stopColor="#b7bdc9" />
+            <stop offset="1" stopColor="#565e70" />
           </linearGradient>
         </defs>
 
         <rect width="500" height="480" fill="url(#wb-bg)" />
-        <circle cx="380" cy="95" r="165" fill="#b28b55" opacity=".08" />
+        <circle cx="380" cy="95" r="165" fill="#ed1c24" opacity=".08" />
 
-        <path d="M40 95L310 10 460 62 188 149Z" fill="#72817b" />
-        <path d="M40 95L188 149 188 172 40 118Z" fill="#3e5555" />
+        <path d="M40 95L310 10 460 62 188 149Z" fill="#7c8496" />
+        <path d="M40 95L188 149 188 172 40 118Z" fill="#434b5c" />
 
         <g fill="url(#wb-stone)">
           <path d="M80 127h46v282H80z" />
@@ -43,18 +43,18 @@ export function ColumnsIllustration() {
           <path d="M375 91h46v318h-46z" />
         </g>
 
-        <g stroke="#203e40" opacity=".3" strokeWidth="4">
+        <g stroke="#252b39" opacity=".3" strokeWidth="4">
           <path d="M92 139v265M109 139v265M190 173v231M207 173v231M290 132v272M307 132v272M387 101v303M404 101v303" />
         </g>
 
-        <path d="M0 409h500v71H0z" fill="#1a333c" />
+        <path d="M0 409h500v71H0z" fill="#222835" />
 
-        <g stroke="#d4b17a" fill="none" strokeWidth="3">
+        <g stroke="#ff6269" fill="none" strokeWidth="3">
           <path d="M250 200v140M204 340h92M177 226h146M190 226l-30 64h60zM310 226l-30 64h60z" />
-          <circle cx="250" cy="208" r="8" fill="#d4b17a" />
+          <circle cx="250" cy="208" r="8" fill="#ff6269" />
         </g>
 
-        <path d="M0 445h500" stroke="#a98b5e" opacity=".25" />
+        <path d="M0 445h500" stroke="#ed1c24" opacity=".25" />
       </svg>
 
       <p className="mt-4 text-sm text-petrol-soft">

@@ -203,6 +203,7 @@ async def get_case_360(
     parties = await service.list_parties(case_id)
     history = await service.list_history(case_id, 200)
 
+    clause = await scope_filter(session, current_user, scope)
     actions, action_total = await ActionService(session).list_actions(
         0, 50, user=current_user, case_id=case_id
     )
@@ -210,13 +211,13 @@ async def get_case_360(
     now = datetime.now(UTC)
     horizon = now + timedelta(days=90)
     events = await CalendarService(session).list_events(
-        current_user, scope_clause=None, start=now, end=horizon, limit=200
+        current_user, scope_clause=clause, start=now, end=horizon, limit=200
     )
     case_events = [event for event in events if event.case_id == case_id]
     permission_names = get_user_permission_names(current_user)
     hearings = (
         await HearingService(session).list_hearings(
-            current_user, scope_clause=None, start=now, end=horizon
+            current_user, scope_clause=clause, start=now, end=horizon
         )
         if current_user.is_superuser or "hearings:read" in permission_names
         else []
@@ -224,14 +225,11 @@ async def get_case_360(
     case_hearings = [item for item in hearings if item.case_id == case_id]
 
     documents = await DocumentService(session).list_documents(
-        current_user, scope_clause=None, case_id=case_id, limit=50
+        current_user, scope_clause=clause, case_id=case_id, limit=50
     )
     evidences = await EvidenceService(session).list_evidences(
-        current_user, scope_clause=None, limit=50
+        current_user, scope_clause=clause, case_id=case_id, limit=50
     )
-    evidences = [
-        item for item in evidences if str(item.case_id) == str(case_id)
-    ]
 
     pending = {
         name: CaseSection(available=False)

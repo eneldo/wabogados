@@ -42,7 +42,18 @@ export default defineConfig({
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
+      name: "public",
+      testMatch: /public-site\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "private",
+      testMatch: /admin-portal\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "layout",
+      testIgnore: [/public-site\.spec\.ts/, /admin-portal\.spec\.ts/],
       use: {
         ...devices["Desktop Chrome"],
         storageState: "e2e/.auth.json",

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { AdminRail } from "@/components/admin/admin-rail";
-import { Seal } from "@/components/primitives";
+import { BrandLogo } from "@/components/brand-logo";
 import type { AdminModule } from "@/lib/admin-nav";
 import { initialsOf } from "@/lib/format";
 
@@ -105,10 +105,12 @@ export function AdminMobileMenu({
   }, [open]);
 
   return (
-    <div className="border-b border-rule-strong bg-ink lg:hidden">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <Seal className="size-7 text-wax" />
-        <span className="font-display text-paper">WABOGADOS</span>
+    <div className="border-b border-rule-strong bg-shell lg:hidden">
+      <div className="flex min-h-24 items-center gap-3 px-4 py-3">
+        <Link href="/" aria-label="WABOGADOS, web pública">
+          <BrandLogo size="compact" priority />
+        </Link>
+        <span className="text-[10px] uppercase tracking-[0.12em] text-ink-muted">Administración</span>
 
         <button
           ref={toggleRef}
@@ -155,7 +157,7 @@ export function AdminMobileMenu({
         <div
           id={panelId}
           ref={panelRef}
-          className="rise max-h-[calc(100dvh-3.75rem)] overflow-y-auto border-t border-paper/12 px-3 pb-3 pt-2"
+          className="rise max-h-[calc(100dvh-6rem)] overflow-y-auto border-t border-paper/12 px-3 pb-3 pt-2"
         >
           <nav aria-label="Administración">
             <AdminRail modules={modules} onNavigate={close} />
@@ -170,7 +172,7 @@ export function AdminMobileMenu({
             <div className="flex items-center gap-2.5">
               <span
                 aria-hidden="true"
-                className="grid size-8 shrink-0 place-items-center rounded-full bg-wax text-[0.6875rem] font-bold text-paper"
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-action text-[0.6875rem] font-bold text-on-action"
               >
                 {initialsOf(profile.name)}
               </span>
@@ -178,14 +180,14 @@ export function AdminMobileMenu({
                 <span className="block truncate text-sm font-medium text-paper">
                   {profile.name}
                 </span>
-                <span className="block truncate text-[0.6875rem] text-paper/50">
+                <span className="block truncate text-[0.6875rem] text-ink-muted">
                   {profile.roleLabel}
                 </span>
               </span>
             </div>
 
-            <div className="mt-3 flex items-center gap-4 text-[0.6875rem] text-paper/55">
-              <Link href="/portal" className="transition-colors hover:text-paper">
+            <div className="mt-3 flex items-center gap-4 text-[0.6875rem] text-ink-muted">
+              <Link href="/admin" className="transition-colors hover:text-paper">
                 Mi panel
               </Link>
               <Link href="/" className="transition-colors hover:text-paper">

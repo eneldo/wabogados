@@ -11,7 +11,7 @@ Access rules, all enforced in `MessagingService`:
 
 import re
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from urllib.parse import quote
 from uuid import UUID
 
@@ -49,6 +49,7 @@ from app.schemas.messaging import (
     UnreadSummaryResponse,
 )
 from app.services.cases import CaseScope, case_scoped, scope_filter
+from app.services.dashboard import DashboardService
 from app.services.messaging import (
     AttachmentInput,
     ConversationStatus,
@@ -56,6 +57,7 @@ from app.services.messaging import (
     ConversationType,
     MessageError,
     MessagingService,
+    NotificationType,
 )
 from app.services.uploads import MAX_UPLOAD_BYTES
 
@@ -273,9 +275,13 @@ async def update_conversation(
     payload: ConversationUpdate,
     session: Annotated[AsyncSession, Depends(get_session)],
     actor: Annotated[User, Depends(require_permission("messages:manage_participants"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
 ) -> ConversationResponse:
+    clause = await _scope_clause(session, actor, scope)
     service = MessagingService(session)
-    conversation = await service.get_conversation(conversation_id, actor)
+    conversation = await service.get_conversation(
+        conversation_id, actor, scope_clause=clause
+    )
     if conversation is None:
         raise _not_found()
 
@@ -289,7 +295,7 @@ async def update_conversation(
         setattr(conversation, field, value)
     await session.commit()
 
-    fresh = await service.get_conversation(conversation_id, actor)
+    fresh = await service.get_conversation(conversation_id, actor, scope_clause=clause)
     assert fresh is not None
     return _conversation_response(ConversationSummary(conversation=fresh))
 
@@ -304,6 +310,7 @@ async def add_participant(
     participant_id: Annotated[UUID, Query(alias="user_id")],
     session: Annotated[AsyncSession, Depends(get_session)],
     actor: Annotated[User, Depends(require_permission("messages:manage_participants"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
 ) -> ConversationResponse:
     """Add someone to a conversation.
 
@@ -311,8 +318,11 @@ async def add_participant(
     internal: silently doing nothing would leave the caller thinking an internal
     colleague had been notified.
     """
+    clause = await _scope_clause(session, actor, scope)
     service = MessagingService(session)
-    conversation = await service.get_conversation(conversation_id, actor)
+    conversation = await service.get_conversation(
+        conversation_id, actor, scope_clause=clause
+    )
     if conversation is None:
         raise _not_found()
 
@@ -329,7 +339,7 @@ async def add_participant(
         ) from error
 
     await session.commit()
-    fresh = await service.get_conversation(conversation_id, actor)
+    fresh = await service.get_conversation(conversation_id, actor, scope_clause=clause)
     assert fresh is not None
     return _conversation_response(ConversationSummary(conversation=fresh))
 
@@ -436,12 +446,16 @@ async def delete_message(
     message_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     actor: Annotated[User, Depends(require_permission("messages:archive"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
 ) -> Response:
+    clause = await _scope_clause(session, actor, scope)
     service = MessagingService(session)
     message = await session.get(Message, message_id)
     if message is None:
         raise _not_found()
-    conversation = await service.get_conversation(message.conversation_id, actor)
+    conversation = await service.get_conversation(
+        message.conversation_id, actor, scope_clause=clause
+    )
     if conversation is None:
         raise _not_found()
 
@@ -580,6 +594,33 @@ async def _message_response(
         deleted_at=message.deleted_at,
         attachments=attachments,
     )
+
+
+@router.post("/notifications/sync-deadlines")
+async def sync_deadline_notifications(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    actor: Annotated[User, Depends(require_permission("notifications:read"))],
+    scope: Annotated[CaseScope, Depends(get_user_scope)],
+) -> dict[str, Any]:
+    dashboard = DashboardService(session, actor)
+    await dashboard.prepare()
+    entries = await dashboard.deadlines_list(days=7, limit=50)
+    messaging = MessagingService(session)
+    created = 0
+    for entry in entries:
+        title = f"Plazo próximo: {entry.title}"
+        body = entry.due_at.isoformat()
+        await messaging.notify(
+            actor,
+            NotificationType.DEADLINE,
+            title=title,
+            body=body,
+            entity="deadline",
+            entity_id=entry.reference_id,
+        )
+        created += 1
+    await session.commit()
+    return {"created": created}
 
 
 __all__ = ["ConversationStatus", "router"]

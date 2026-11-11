@@ -4,15 +4,16 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { DrawRule } from "./reveal";
+import { BrandLogo } from "@/components/brand-logo";
 
 /**
  * Sticky header with the mobile menu, and three things that only make sense
  * while the page is being read.
  *
- * 1. **It condenses.** Past the first screen it drops from 90px to 66px. A bar
- *    that never gives the space back is a permanent tax on the reader.
+ * 1. **It condenses.** On desktop it drops from 112px to 88px, with the logo
+ *    scaling proportionally. Mobile keeps a stable 96px header for its menu.
  * 2. **It says where you are.** The link for the section currently in view turns
- *    gold and grows an underline. A seven-section page with no marker reads as
+ *    the accent colour and grows an underline. A page with no marker reads as
  *    an endless scroll; this is the cheapest cure.
  * 3. **It says how much is left.** Two pixels of gold across the top.
  *
@@ -140,14 +141,13 @@ export function SiteHeader() {
       <header className="site-header" data-condensed={condensed}>
         <div className="site-progress" aria-hidden="true" />
         <div className="wrap site-nav">
-          <Link href="#inicio" className="brand-word" aria-label="WABOGADOS, inicio">
-            <em>W</em>ABOGADOS
-            <small>ESTRATEGIA JURÍDICA</small>
+          <Link href="#inicio" className="site-brand" aria-label="WABOGADOS, inicio">
+            <BrandLogo priority imageClassName="site-logo" />
           </Link>
 
           <button
             type="button"
-            className="ml-auto text-2xl text-petrol md:hidden"
+            className="site-menu-toggle"
             aria-label={open ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={open}
             aria-controls="site-navigation"
@@ -216,10 +216,9 @@ export function SiteFooter() {
       <div className="wrap">
         <DrawRule />
         <div className="flex flex-col items-start gap-8 py-12 lg:flex-row lg:items-center lg:justify-between">
-          <span className="brand-word text-ivory">
-            <em>W</em>ABOGADOS
-            <small className="text-ivory/60">ESTRATEGIA JURÍDICA</small>
-          </span>
+          <Link href="#inicio" className="site-brand site-brand--footer" aria-label="WABOGADOS, inicio">
+            <BrandLogo size="footer" imageClassName="site-logo" />
+          </Link>
 
           <address className="text-xs not-italic leading-relaxed text-ivory/60">
             <span className="block">{FOOTER_CONTACT.address}</span>

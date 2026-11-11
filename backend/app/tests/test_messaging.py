@@ -1472,3 +1472,45 @@ async def test_a_thread_without_a_case_stays_readable(
     )
 
     assert response.status_code == 200
+
+@pytest.mark.asyncio
+async def test_a_participant_who_lost_the_case_cannot_mutate_the_thread(
+    client: AsyncClient,
+    database_session: AsyncSession,
+    admin_user: User,
+    other_case: Case,
+    staff_user: User,
+    second_lawyer_token: tuple[Lawyer, str],
+) -> None:
+    """Scope applies to writes too: membership alone must not grant control."""
+    lawyer, token = second_lawyer_token
+    service = MessagingService(database_session)
+    conversation = await service.create_conversation(
+        admin_user,
+        subject="Estrategia",
+        conversation_type=ConversationType.INTERNAL,
+        case_id=other_case.id,
+        participant_ids=[cast(UUID, lawyer.user_id)],
+    )
+
+    update = await client.patch(
+        f"{CONVERSATIONS}/{conversation.id}",
+        json={"status": "cerrado"},
+        headers=_auth(token),
+    )
+    add = await client.post(
+        f"{CONVERSATIONS}/{conversation.id}/participants",
+        params={"user_id": str(staff_user.id)},
+        headers=_auth(token),
+    )
+    lawyer_user = await database_session.get(User, lawyer.user_id)
+    assert lawyer_user is not None
+    own = await service.send_message(conversation, lawyer_user, "mio")
+    delete = await client.delete(
+        f"{MESSAGES}/{own.id}",
+        headers=_auth(token),
+    )
+
+    assert update.status_code == 404
+    assert add.status_code == 404
+    assert delete.status_code == 404

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { Card, Label, Seal } from "@/components/primitives";
+import { Card, Label } from "@/components/primitives";
+import { BrandLogo } from "@/components/brand-logo";
 /**
  * Shown when the API is reachable but the call failed.
  *
@@ -21,7 +22,7 @@ export function ServiceUnavailable({
     <main className="grid min-h-screen place-items-center px-6 py-20">
       <Card className="w-full max-w-lg p-8 text-center">
         <div className="flex justify-center">
-          <Seal className="size-11" />
+          <BrandLogo size="sidebar" />
         </div>
         <Label className="mt-6">Servicio no disponible</Label>
         <h1 className="font-display mt-2 text-3xl leading-tight">
@@ -34,7 +35,7 @@ export function ServiceUnavailable({
         <div className="mt-7 flex justify-center gap-3">
           <Link
             href={backHref}
-            className="rounded-card bg-ink px-4 py-2.5 text-sm font-semibold text-paper transition-colors hover:bg-ink-soft"
+            className="rounded-card bg-action px-4 py-2.5 text-sm font-semibold text-on-action transition-colors hover:bg-action-hover"
           >
             {backLabel}
           </Link>

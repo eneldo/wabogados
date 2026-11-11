@@ -44,7 +44,19 @@ Evidencias: originales inmutables, derivados optimizados, SHA-256, cadena de cus
 ## Frontend
 - Next.js 16 App Router, TypeScript strict, Tailwind 4, ESLint 9
 - Server Components por defecto
-- Página de estado en / consumiendo /api/v1/health/ready
+- Web corporativa pública en `/`; estado en `/estado` consumiendo `/api/v1/health/ready`
+- Identidad pública revisada el 2026-10-22: logo real servido desde
+  `frontend/public/marca/`, tema azul noche/gris/rojo de `wabogado-2.jpg` limitado
+  a `.public-site`, ancho fluido. Guía: `docs/IDENTIDAD_WEB_PUBLICA.md`;
+  11 regresiones públicas ejecutables sin credenciales (`--project=public`).
+- Administración en `/admin` (13 módulos), cliente en `/portal` y acceso compartido
+  en `/login`. Destino administrativo y reentrada con sesión **corregidos y
+  verificados el 2026-10-22**. Se usa el cliente interno y guarda comunes, sin
+  consultar localhost desde Docker ni aceptar identidades vacías al fallar la API.
+  Ver `docs/VERIFICACION_PORTAL_ADMIN_2026-10-22.md`: 4 pruebas privadas, 13
+  módulos en lectura, 52 inspecciones de layout y cierre con revocación verificados.
+  Las limitaciones funcionales del informe `REVISION_WEB_Y_PORTALES_2026-10-22.md`
+  (actuaciones, etc.) siguen siendo trabajos separados de la navegación.
 - Accesible: aria-live, role=status, contraste
 
 ## Base de datos

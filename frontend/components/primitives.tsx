@@ -15,7 +15,7 @@ const TONE_CLASS: Record<Tone, string> = {
   forest: "bg-forest-tint text-forest ring-forest/30",
   brass: "bg-brass-tint text-brass ring-brass/30",
   wax: "bg-wax-tint text-wax-deep ring-wax/30",
-  ink: "bg-ink text-paper ring-ink",
+  ink: "bg-shell text-paper ring-rule-strong",
 };
 
 /** The dot that carries the colour, so the word beside it can stay quiet. */

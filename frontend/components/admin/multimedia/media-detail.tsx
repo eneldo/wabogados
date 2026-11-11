@@ -59,7 +59,7 @@ export function MediaDetail({
         type="button"
         aria-label="Cerrar la ficha"
         onClick={() => router.push(closeHref)}
-        className="absolute inset-0 bg-ink/45"
+        className="absolute inset-0 bg-overlay/70"
       />
 
       <div
@@ -92,7 +92,7 @@ export function MediaDetail({
                   controls
                   preload="metadata"
                   playsInline
-                  className="w-full rounded-card border border-rule bg-ink"
+                  className="w-full rounded-card border border-rule bg-shell"
                   src={source}
                 />
               ) : null}

@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_user_permission_names
 from app.core.config import get_settings
-from app.models import Case, Document, DocumentDownload, DocumentVersion, User
+from app.models import Case, Client, Document, DocumentDownload, DocumentVersion, User
 from app.schemas.documents import DocumentCreate, DocumentUpdate
 from app.services.antivirus import (
     AntivirusUnavailable,
@@ -284,6 +284,43 @@ class DocumentService:
         await self.session.flush()
         return document
 
+
+
+    async def _notify_published_document(
+        self, document: Document, *, actor_id: UUID | None
+    ) -> None:
+        if document.visibility != PUBLISHED_VISIBILITY or not document.is_active:
+            return
+        if document.status == "anulado":
+            return
+        row = await self.session.execute(
+            select(User)
+            .join(Client, Client.user_id == User.id)
+            .join(Case, Case.client_id == Client.id)
+            .where(
+                Case.id == document.case_id,
+                Case.is_active.is_(True),
+                Client.is_active.is_(True),
+                Client.user_id.is_not(None),
+                User.is_active.is_(True),
+            )
+        )
+        target = row.scalars().first()
+        if target is None or (actor_id is not None and target.id == actor_id):
+            return
+        from app.services.messaging import MessagingService, NotificationType
+
+        case = await self.session.get(Case, document.case_id)
+        case_label = case.case_number if case else "su expediente"
+        await MessagingService(self.session).notify(
+            target,
+            NotificationType.DOCUMENT_PUBLISHED,
+            title=f"Documento publicado en {case_label}",
+            body=(document.title or "Se publicó un documento para consulta.")[:240],
+            entity="documents",
+            entity_id=document.id,
+        )
+
     async def update_document(
         self, document: Document, payload: DocumentUpdate, *, actor_id: UUID | None = None
     ) -> Document:
@@ -293,6 +330,10 @@ class DocumentService:
         before = {field: getattr(document, field, None) for field in TRACKED_DOCUMENT_FIELDS}
         for field, value in data.items():
             setattr(document, field, value)
+        became_published = (
+            before.get("visibility") != PUBLISHED_VISIBILITY
+            and document.visibility == PUBLISHED_VISIBILITY
+        )
         record_changes(
             self.session,
             entity=DOCUMENT_ENTITY,
@@ -304,6 +345,8 @@ class DocumentService:
         )
         await self.session.flush()
         await self.session.refresh(document)
+        if became_published:
+            await self._notify_published_document(document, actor_id=actor_id)
         return document
 
     async def add_version(

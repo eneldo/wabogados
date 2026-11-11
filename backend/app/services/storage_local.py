@@ -19,6 +19,7 @@ from app.services.storage import (
     StoredStat,
     build_evidence_key,
     build_key,
+    spool_to_disk,
 )
 
 
@@ -77,6 +78,37 @@ class LocalStorage:
             key=key,
             size_bytes=len(content),
             sha256=hashlib.sha256(content).hexdigest(),
+            tier=tier,
+        )
+
+    async def write_stream(
+        self,
+        key: str,
+        source: AsyncIterator[bytes],
+        *,
+        tier: StorageTier = StorageTier.HOT,
+    ) -> StoredObject:
+        """Spool chunks beside the target and rename once they are all on disk.
+
+        The spool file lives in the object's own directory so the rename stays
+        an atomic same-filesystem operation; the leading dot keeps it out of
+        `iter_keys` even if this process dies mid-upload, exactly like the
+        temp file `write` uses but drained a chunk at a time.
+        """
+        path = self._resolve(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        spool = await spool_to_disk(
+            source, path.parent, f".{path.name}", suffix=".partial"
+        )
+        try:
+            spool.path.replace(path)
+        except BaseException:
+            spool.path.unlink(missing_ok=True)
+            raise
+        return StoredObject(
+            key=key,
+            size_bytes=spool.size_bytes,
+            sha256=spool.sha256,
             tier=tier,
         )
 

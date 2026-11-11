@@ -247,7 +247,7 @@ export function ConversationList({
                   {item.subject}
                 </span>
                 {item.unread > 0 ? (
-                  <span className="tnum shrink-0 rounded-full bg-wax px-2 py-0.5 text-[0.625rem] font-bold text-paper">
+                  <span className="tnum shrink-0 rounded-full bg-action px-2 py-0.5 text-[0.625rem] font-bold text-on-action">
                     {item.unread}
                   </span>
                 ) : null}
@@ -335,7 +335,7 @@ export function ConversationList({
                         {mine ? "Tú" : message.sender_name}
                       </p>
                       <div className={`rounded-card px-4 py-3 text-sm leading-relaxed ${
-                        mine ? "bg-ink text-paper" : "border border-rule bg-surface-sunk text-ink"
+                        mine ? "bg-shell text-paper" : "border border-rule bg-surface-sunk text-ink"
                       }`}>
                         {message.deleted_at ? (
                           <em className="opacity-60">Mensaje archivado</em>

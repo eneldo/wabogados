@@ -45,36 +45,35 @@ hallazgo nuevo sin cerrar más abajo.
    backend y frontend dejando el `evidence-worker` escribiendo sobre la base que se
    repone.
 
-## PENDIENTE CRÍTICO: el alcance en `messages.py` (2026-10-06, SIN arreglar)
+## Resuelto (código base) + endurecimiento: alcance en mensajería (2026-10-06, actualizado)
 
-**Es el mismo fallo que los otros cuatro y el más grave de todos, porque descarga
-bytes.** No está cerrado.
+El fallo crítico descrito aquí —participante con membership pero sin alcance
+vigente sobre el expediente podía seguir leyendo hilos, listados y adjuntos—
+**quedó cerrado en commits `128881f`/`e2c705e`**: `MessagingService` aplica
+`scope_clause` en lecturas (`get_conversation`, `list_conversations`,
+`list_messages`, `read_attachment`) y la API de mensajes lo propaga desde
+`get_user_scope`. Pruebas de regresión en `backend/app/tests/test_messaging.py`
+cobren pérdida de acceso a hilo, listado, mensajes/adjuntos, acceso válido al
+propio caso y legibilidad de hilos sin `case_id`.
 
-`Conversation` **sí** tiene `case_id` con relación a `Case`. `create_conversation` **sí**
-resuelve el alcance, y por eso `test_unassigned_lawyer_cannot_open_thread_on_another_case`
-pasa. **Nada lo vuelve a comprobar al salir**: la participación era la única puerta de
-las lecturas.
+**Endurecimiento aplicado en esta sesión (Fase 0):**
+- `backend/app/api/v1/messages.py`: `PATCH /conversations/{id}`,
+  `POST /conversations/{id}/participants` y `DELETE /messages/{id}` ahora
+  exigen alcance de expediente (`scope_clause`) además de membership.
+- `backend/app/services/messaging.py`: docstring de `_visibility_clause`
+  corregido (el alcance de expediente lo aplica el llamador vía
+  `scope_clause`, no ese método).
+- Regresión añadida:
+  `test_a_participant_who_lost_the_case_cannot_mutate_the_thread` en
+  `backend/app/tests/test_messaging.py`.
 
-> Un abogado que estuvo en un hilo y luego salió del expediente **sigue leyéndolo**,
-> con su `case_number`, y puede descargar los adjuntos. Estar en la conversación
-> responde «me escribieron esto»; no responde «puedo seguir viéndolo».
+**Regla conservada**: expediente presente → se filtra por alcance; `case_id`
+`NULL` → material firm'swide, visible según membership/tipo de conversación.
 
-- `backend/app/services/messaging.py` **no acepta ningún parámetro de scope**, al
-  contrario que los seis services ya corregidos. El trabajo está a medias justo en el
-  lado opuesto: el service sabe calcular el alcance, pero solo se lo pide al escribir.
-- Sin filtrar: `get_conversation`, `list_conversations`, `list_messages`,
-  `read_attachment`, `get_message`, y las escrituras `update_conversation`,
-  `add_participant`, `send_message`, `delete_message`.
-- `list_conversations` acepta `case_id` como filtro **sin validar** que el expediente
-  esté en alcance.
-- `_visibility_clause` tiene un docstring que promete *«Staff with case wide read see
-  conversations of their scope»* y la implementación **no contiene ninguna cláusula de
-  expediente**. Hay que corregir esa documentación al arreglar el código.
-- Los hilos **sin** `case_id` deben seguir funcionando: son notas internas ordinarias.
-  `test_staff_drafts_but_neither_issues_nor_voids` ya demostró que un filtro que
-  responde «no existe» donde la verdad es «ese no es tuyo» es una regresión.
-- Reutilizar el criterio ya fijado dos veces: expediente presente → se filtra;
-  `NULL` → material firm'swide, visible.
+**Pendiente menor (no crítico)**: `total_unread`/resumen de no leídos no aplica
+alcance de expediente; si un participante conserva membership tras perder
+alcance, el conteo puede reflejar actividad del hilo. Evaluar si el resumen
+debe respetar alcance.
 
 ### La regla de los ocho routers que NO llevan `get_user_scope` (y está bien)
 

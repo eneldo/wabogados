@@ -141,17 +141,18 @@ class MessagingService:
         )
 
     def _visibility_clause(self, user: User) -> ColumnElement[bool]:
-        """The set of conversations a user may list.
+        """Coarse conversation-type filter for listings.
 
-        Staff with case wide read see conversations of their scope. A client only
-        ever sees their own ``cliente`` conversations.
+        Case scope is applied separately by the caller via ``scope_clause``; this
+        method only distinguishes staff-capable accounts from the client portal.
+        A client only ever sees their own ``cliente`` conversations.
         """
         permissions = get_user_permission_names(user)
         if "messages:create_conversation" in permissions or user.is_superuser:
             return Conversation.conversation_type.in_(
                 (ConversationType.INTERNAL.value, ConversationType.CLIENT.value)
             )
-        # Portal: published channel only, about their own client.
+        # Portal: published channel only.
         return Conversation.conversation_type == ConversationType.CLIENT.value
 
     async def _client_ids_for(self, user: User) -> list[UUID]:

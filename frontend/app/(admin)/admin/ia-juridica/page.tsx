@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/admin/form-controls";
+import { IaGenerate } from "@/components/admin/ia-generate";
 import { PageHeader } from "@/components/admin/page-furniture";
 import { Card, Chip, EmptyState, RuleNote } from "@/components/primitives";
 import { ServiceUnavailable } from "@/components/service-unavailable";
@@ -21,17 +22,16 @@ import type {
  *
  * Three things are real: a **lexical search** over cases, documents and the
  * multimedia library; an **extractive summary** that quotes a document's own
- * sentences; and an honest panel about what is missing.
+ * sentences; and a **draft generator** that only answers when the environment
+ * carries `AI_PROVIDER` and `AI_API_KEY` — without them the panel names what is
+ * missing and the box stays inert. Every draft comes back marked
+ * `requires_review`, because it is raw material for a lawyer, never a finished
+ * text.
  *
- * What is *not* here is the part the word "AI" usually implies. There is no
- * provider, no model, no embeddings, no vector store and no queue, so there is no
- * prompt box and no chat. A screen that offered one would be a promise the backend
- * cannot keep, and a lawyer who typed a question and got a canned answer would have
- * no way to tell. The panel below names each absence instead of hiding it.
- *
- * The filter is lexical, so it finds what was typed and nothing subtler. That is
- * also why the screen shows the words it ranked on: a result you cannot explain is
- * a result you cannot use in front of a court.
+ * There are no embeddings, no vector store and no queue: search stays lexical so
+ * a hit can be explained, and the generator has no memory of what it produced
+ * until a lawyer saves it. Sending client data to an external provider is the
+ * firm's professional-secrecy decision, not a setting on this screen.
  */
 
 const MIN_QUERY = 2;
@@ -136,6 +136,10 @@ export default async function LegalAiPage({
       </form>
 
       <ProviderPanel status={provider} />
+
+      <div className="mt-6">
+        <IaGenerate />
+      </div>
 
       {summary || summaryFailed || summaryFor ? (
         <div className="mt-6">

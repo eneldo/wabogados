@@ -62,12 +62,12 @@ export function AdminRail({
             (!isIndex && pathname.startsWith(`${module.href}/`)));
 
         const base =
-          "flex items-center gap-2.5 rounded-card px-2.5 py-2 text-sm transition-colors";
+          "flex items-center gap-2.5 rounded-card border-l-2 px-2.5 py-2 text-sm transition-colors";
         const tone = active
-          ? "bg-white/12 text-paper"
+          ? "border-brand-red bg-surface text-paper"
           : usable
-            ? "text-paper/70 hover:bg-white/8 hover:text-paper"
-            : "cursor-not-allowed text-paper/35";
+            ? "border-transparent text-ink-muted hover:bg-shell-hover hover:text-paper"
+            : "border-transparent cursor-not-allowed text-ink-faint";
 
         const content = (
           <>

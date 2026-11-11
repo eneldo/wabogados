@@ -1,5 +1,58 @@
 <!-- Nuevos aprendizajes debajo de esta línea -->
 
+- **2026-10-22 — Unificar un tema oscuro exige separar texto, fondos y estados:**
+  **Contexto:** Al extender la marca de la portada a los portales, las clases
+  antiguas reutilizaban `ink` como texto y fondo, y `paper` como fondo y texto
+  inverso. Cambiar solo sus valores habría creado botones/overlays claros con
+  texto blanco o estados ilegibles.
+  **Aprendizaje:** Usar tokens por función (`canvas`, `surface`, `shell`,
+  `overlay`, `action`, `on-action`) y un logo compartido, no invertir colores
+  mediante filtros ni reescribir valores por cada rol. Mantener éxito/advertencia
+  distintos de la marca. Las rejillas privadas necesitan `min-width: 0` para
+  que textos largos no ensanchen toda la página en móvil.
+  **Aplicación futura:** `BrandLogo` y `globals.css` como fuentes únicas;
+  `e2e/brand-assertions.ts` comprueba imagen descargada, proporción, colores
+  calculados y pares de contraste, además de probar shell móvil y diálogos.
+
+- **2026-10-22 — La URL interna y el autocompletado también forman parte del acceso:**
+  **Contexto:** El administrador podía iniciar sesión, pero reabrir `/login`
+  producía HTTP 500: esa página consultaba `localhost:8000` desde el contenedor,
+  ignorando `API_INTERNAL_URL`. En el formulario, campos DOM llenos podían enviar
+  valores React vacíos (422).
+  **Aprendizaje:** Una comprobación de login no basta: hay que reabrir el acceso
+  con sesión vigente y distinguir 401 de indisponibilidad. La identidad no puede
+  usar un objeto vacío como respaldo. El autocompletado no garantiza eventos de
+  cambio React; leer `FormData` al enviar evita desincronización de los valores.
+  **Aplicación futura:** Reutilizar cliente servidor/guarda existentes y una
+  clasificación de roles compartida. Regresiones en `e2e/admin-portal.spec.ts`
+  para cookies inválidas, roles combinados, autocompletado y recorrido real.
+
+- **2026-10-22 — Verificar recursos servidos y CSS calculado, no solo cadenas en fuente:**
+  **Contexto:** El logo estaba referenciado en el HTML pero su URL respondía 404;
+  los colores nuevos figuraban únicamente en un comentario CSS. Varias pruebas
+  anteriores declararon éxito leyendo fuente o artefactos locales distintos de
+  la imagen Docker que atendía el puerto 3000.
+  **Aprendizaje:** Un nombre en HTML/CSS no prueba una imagen cargada ni una
+  variable válida. Compose empaqueta el frontend: reiniciarlo no copia cambios
+  del host, y borrar `.next` local no modifica el contenedor.
+  **Aplicación futura:** Copiar recursos al contexto `frontend/public`, definir
+  tokens en reglas reales, reconstruir imagen y recrear solo frontend. Afirmar
+  HTTP 200 y MIME de `currentSrc`, `naturalWidth`, proporción y colores calculados
+  en navegador sobre la URL desplegada. Regresión: `e2e/public-site.spec.ts`.
+
+- **2026-10-22 — Probar una página por URL directa no verifica cómo llega el usuario:**
+  **Contexto:** El administrador autenticaba correctamente y las 13 páginas
+  administrativas abrían por URL directa, pero el login lo enviaba al listado
+  anterior sin menú administrativo; reabrir login con sesión lo mandaba a una
+  pantalla titulada «Portal del cliente». La prueba de acceso previa navegó
+  manualmente a `/admin` y no comprobó el destino inicial.
+  **Aprendizaje:** Exigir únicamente un HTTP 200 o abandonar `/login` deja pasar
+  una redirección al portal equivocado. El camino de entrada y el regreso con
+  sesión existente son comportamientos distintos de la autorización de destino.
+  **Aplicación futura:** Para cada perfil, afirmar la URL y la navegación visibles
+  tras autenticación, al reabrir el acceso con sesión y al entrar desde la web;
+  después comprobar páginas internas y cierre de sesión por separado.
+
 - **2026-10-22 — Un pin de imagen no es un archivo: los registries pueden retirar lo que se fija:**
   **Contexto:** Al levantar el stack restaurado, `minio/minio` dio «pull access
   denied» en Docker Hub y en Quay a pesar de pulls de control correctos con
@@ -829,3 +882,19 @@
   **Aplicación futura:** En cualquier esquema de claves reproducibles (S3,
   derivados, transcodes), afirmar sobre bytes y digest; reservar "cambió la
   clave" para afirmar una rotación de claves, que es distinta operación.
+
+- **2026-11-11 — Auditoría y verificación local en host Linux:**
+  **Contexto:** Auditoría del proyecto cruzando memoria y estado real. El
+  ciclo del 8-nov llevaba sin commit (103 modificados + 37 sin seguimiento,
+  con 4 migraciones nuevas) y la suite no se podía correr localmente.
+  **Aprendizaje:** `backend/.venv` está creada en Windows (`Scripts/`,
+  `pyvenv.cfg`) y es inutilizable en el host Fedora; la única vía local para
+  pytest/ruff/mypy es el stack de Compose (`compose.test.yaml`), que además
+  estaba parcialmente parado (solo clamav y evidence-worker). Lo sí
+  verificable sin BD es barato y fiable: `npx tsc --noEmit` (limpio) y
+  `python3 -m py_compile` (OK) en los módulos nuevos.
+  **Aplicación futura:** Al auditar, distinguir "verificado hoy" de "estado
+  registrado en memoria": memoria decía suite en verde de 2026-10-06/22, pero
+  ese veredicto no cubre el trabajo sin commit posterior. Antes de declarar
+  una tarea terminada sin venv local, exigir el paso por `docker compose -f
+  compose.yaml -f compose.test.yaml` y commit del ciclo.

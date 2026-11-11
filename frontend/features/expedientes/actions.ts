@@ -231,3 +231,127 @@ export async function addParty(
     return { status: "error", ...describe(error) };
   }
 }
+// ---- Client requests (staff) ----
+
+export async function createClientRequest(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const caseId = text(form, "case_id");
+  if (!caseId) return { status: "error", message: "Expediente no identificado." };
+  try {
+    await apiFetch(`/api/v1/cases/${caseId}/client-requests`, {
+      method: "POST",
+      body: {
+        request_type: text(form, "request_type") || "tarea",
+        title: text(form, "title"),
+        description: optional(form, "description") ?? null,
+        priority: text(form, "priority") || "normal",
+        due_at: optional(form, "due_at") ? `${text(form, "due_at")}T23:59:59Z` : null,
+      },
+    });
+    revalidatePath(`/admin/expedientes/${caseId}`);
+    revalidatePath(`/expedientes/${caseId}`);
+    return { status: "ok", message: "Solicitud creada y notificada al cliente." };
+  } catch (error) {
+    return { status: "error", ...describe(error) };
+  }
+}
+
+export async function updateClientRequest(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const caseId = text(form, "case_id");
+  const requestId = text(form, "request_id");
+  if (!caseId || !requestId) return { status: "error", message: "Solicitud no identificada." };
+  const body: Record<string, unknown> = {};
+  const status = optional(form, "status");
+  const reviewNote = form.get("review_note");
+  const title = optional(form, "title");
+  const description = form.get("description");
+  const requestType = optional(form, "request_type");
+  const priority = optional(form, "priority");
+  const dueAt = form.get("due_at");
+  if (status) body.status = status;
+  if (typeof reviewNote === "string") body.review_note = reviewNote.trim() || null;
+  if (title) body.title = title;
+  if (typeof description === "string") body.description = description.trim() || null;
+  if (requestType) body.request_type = requestType;
+  if (priority) body.priority = priority;
+  if (typeof dueAt === "string") {
+    body.due_at = dueAt.trim() ? `${dueAt.trim()}T23:59:59Z` : null;
+  }
+  try {
+    await apiFetch(`/api/v1/client-requests/${requestId}`, { method: "PATCH", body });
+    revalidatePath(`/admin/expedientes/${caseId}`);
+    revalidatePath(`/expedientes/${caseId}`);
+    return { status: "ok", message: "Solicitud actualizada." };
+  } catch (error) {
+    return { status: "error", ...describe(error) };
+  }
+}
+
+// ---- Case milestones (staff, controlled publication) ----
+
+export async function createCaseMilestone(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const caseId = text(form, "case_id");
+  if (!caseId) return { status: "error", message: "Expediente no identificado." };
+  try {
+    await apiFetch(`/api/v1/cases/${caseId}/milestones`, {
+      method: "POST",
+      body: {
+        stage_key: text(form, "stage_key") || "etapa",
+        title: text(form, "title"),
+        description: optional(form, "description") ?? null,
+        status: text(form, "status") || "pendiente",
+        planned_at: optional(form, "planned_at") ? `${text(form, "planned_at")}T00:00:00Z` : null,
+        completed_at: optional(form, "completed_at") ? `${text(form, "completed_at")}T00:00:00Z` : null,
+        is_published: form.get("is_published") === "on",
+        sort_order: Number(text(form, "sort_order") || "0"),
+      },
+    });
+    revalidatePath(`/admin/expedientes/${caseId}`);
+    revalidatePath(`/expedientes/${caseId}`);
+    return { status: "ok", message: "Hito guardado." };
+  } catch (error) {
+    return { status: "error", ...describe(error) };
+  }
+}
+
+export async function updateCaseMilestone(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const caseId = text(form, "case_id");
+  const milestoneId = text(form, "milestone_id");
+  if (!caseId || !milestoneId) return { status: "error", message: "Hito no identificado." };
+  const body: Record<string, unknown> = {
+    is_published: form.get("is_published") === "on",
+  };
+  const title = optional(form, "title");
+  const stageKey = optional(form, "stage_key");
+  const status = optional(form, "status");
+  const description = form.get("description");
+  const sortOrder = text(form, "sort_order");
+  const plannedAt = form.get("planned_at");
+  const completedAt = form.get("completed_at");
+  if (title) body.title = title;
+  if (stageKey) body.stage_key = stageKey;
+  if (status) body.status = status;
+  if (typeof description === "string") body.description = description.trim() || null;
+  if (sortOrder !== "") body.sort_order = Number(sortOrder);
+  if (typeof plannedAt === "string") body.planned_at = plannedAt.trim() ? `${plannedAt.trim()}T00:00:00Z` : null;
+  if (typeof completedAt === "string") body.completed_at = completedAt.trim() ? `${completedAt.trim()}T00:00:00Z` : null;
+  try {
+    await apiFetch(`/api/v1/milestones/${milestoneId}`, { method: "PATCH", body });
+    revalidatePath(`/admin/expedientes/${caseId}`);
+    revalidatePath(`/expedientes/${caseId}`);
+    return { status: "ok", message: "Hito actualizado." };
+  } catch (error) {
+    return { status: "error", ...describe(error) };
+  }
+}

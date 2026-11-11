@@ -5,7 +5,7 @@ from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_user_permission_names
-from app.models import Action, Case, ChangeLog, Lawyer, User
+from app.models import Action, Case, ChangeLog, Client, Lawyer, User
 from app.schemas.actions import ActionCreate, ActionUpdate
 from app.services.history import record_changes
 
@@ -142,6 +142,42 @@ class ActionService:
             raise ActionError("El abogado responsable no existe o está inactivo")
         return lawyer
 
+
+
+    async def _notify_published_action(self, action: Action, *, actor_id: UUID | None) -> None:
+        """Notify the case's portal client when an action is published."""
+        if action.visibility != PUBLISHED_VISIBILITY or not action.is_active:
+            return
+        row = await self.session.execute(
+            select(User)
+            .join(Client, Client.user_id == User.id)
+            .join(Case, Case.client_id == Client.id)
+            .where(
+                Case.id == action.case_id,
+                Case.is_active.is_(True),
+                Client.is_active.is_(True),
+                Client.user_id.is_not(None),
+                User.is_active.is_(True),
+            )
+        )
+        target = row.scalars().first()
+        if target is None or (actor_id is not None and target.id == actor_id):
+            return
+        from app.services.messaging import MessagingService, NotificationType
+
+        case = await self.session.get(Case, action.case_id)
+        case_label = case.case_number if case else "su expediente"
+        await MessagingService(self.session).notify(
+            target,
+            NotificationType.CASE_UPDATE,
+            title=f"Actualización en el expediente {case_label}",
+            body=(
+                action.next_action or action.description or "Hay una nueva actuación publicada."
+            )[:240],
+            entity="actions",
+            entity_id=action.id,
+        )
+
     async def create_action(
         self, payload: ActionCreate, *, actor_id: UUID | None = None
     ) -> Action:
@@ -175,6 +211,7 @@ class ActionService:
             fields=TRACKED_ACTION_FIELDS,
         )
         await self.session.flush()
+        await self._notify_published_action(action, actor_id=actor_id)
         return action
 
     async def update_action(
@@ -192,6 +229,10 @@ class ActionService:
         for field, value in data.items():
             setattr(action, field, value)
 
+        became_published = (
+            before.get("visibility") != PUBLISHED_VISIBILITY
+            and action.visibility == PUBLISHED_VISIBILITY
+        )
         record_changes(
             self.session,
             entity=ACTION_ENTITY,
@@ -203,6 +244,8 @@ class ActionService:
         )
         await self.session.flush()
         await self.session.refresh(action)
+        if became_published:
+            await self._notify_published_action(action, actor_id=actor_id)
         return action
 
     async def history_for_action(

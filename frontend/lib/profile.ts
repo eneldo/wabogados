@@ -5,7 +5,8 @@
  * whether to show "administrador" or "Administrador".
  */
 
-import { apiFetchOr, ApiNotAuthenticated } from "@/lib/api";
+import { apiFetch, apiFetchOr, ApiNotAuthenticated } from "@/lib/api";
+import { isClientOnly } from "@/lib/landing";
 import { readAccessToken } from "@/lib/session";
 import type { SessionProfile, UnreadSummary } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export type Profile = {
   name: string;
   roleLabel: string;
   unread: number;
+  roles: string[];
   permissions: string[];
   isClient: boolean;
   canSeeEvidenceManager: boolean;
@@ -47,7 +49,8 @@ export async function getProfile(): Promise<Profile | null> {
 
   let me: MeResponse;
   try {
-    me = await apiFetchOr<MeResponse>({}, "/api/v1/auth/me");
+    // Identity is required: an API outage must not become an empty profile.
+    me = await apiFetch<MeResponse>("/api/v1/auth/me");
   } catch (error) {
     if (error instanceof ApiNotAuthenticated) return null;
     throw error;
@@ -68,8 +71,9 @@ export async function getProfile(): Promise<Profile | null> {
     name: me.full_name?.trim() || me.email?.split("@")[0] || "Usuario",
     roleLabel: ROLE_LABELS[primary] ?? primary ?? "",
     unread,
+    roles,
     permissions,
-    isClient: primary === "cliente",
+    isClient: isClientOnly(roles),
     // The evidence manager is staff-only. The permission list is the check, not
     // the role name, so a custom role that may upload still gets in.
     canSeeEvidenceManager: permissions.some((name) =>

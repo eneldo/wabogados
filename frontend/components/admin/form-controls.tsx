@@ -27,7 +27,7 @@ function fieldClass(hasError: boolean, extra = ""): string {
 export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "ghost";
 
 const BUTTON: Record<ButtonVariant, string> = {
-  primary: "bg-ink text-paper hover:bg-ink-soft",
+  primary: "bg-action text-on-action hover:bg-action-hover",
   secondary: "border border-rule-strong bg-surface text-ink hover:border-wax hover:text-wax",
   /*
     For a button that shares a row with a link. A bordered button next to a
@@ -35,7 +35,7 @@ const BUTTON: Record<ButtonVariant, string> = {
     fill, so the row has one clear target and one quiet one.
   */
   quiet: "border border-rule bg-transparent text-ink-muted hover:border-rule-strong hover:text-ink",
-  danger: "border border-wax/40 bg-wax-tint text-wax-deep hover:bg-wax hover:text-paper",
+  danger: "border border-wax/40 bg-wax-tint text-wax-deep hover:bg-danger-strong hover:text-on-action",
   ghost: "text-ink-muted hover:text-ink",
 };
 

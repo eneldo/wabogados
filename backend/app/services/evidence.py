@@ -805,6 +805,7 @@ class EvidenceService:
         user: User,
         *,
         scope_clause: ColumnElement[bool] | None = None,
+        case_id: UUID | None = None,
         status: str | None = None,
         evidence_type: str | None = None,
         limit: int = 100,
@@ -815,6 +816,8 @@ class EvidenceService:
         ]
         if scope_clause is not None:
             filters.append(scope_clause)
+        if case_id is not None:
+            filters.append(Evidence.case_id == case_id)
         if status:
             filters.append(Evidence.status == status)
         if evidence_type:

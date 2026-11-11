@@ -15,6 +15,8 @@ import {
   Label,
   SectionHeading,
 } from "@/components/primitives";
+import { ClientRequestsPanel } from "@/components/expedientes/client-requests-panel";
+import { CaseMilestonesPanel } from "@/components/expedientes/case-milestones-panel";
 import { ServiceUnavailable } from "@/components/service-unavailable";
 import {
   addParty,
@@ -35,7 +37,13 @@ import {
   processTypeLabel,
 } from "@/lib/format";
 import { requireSession } from "@/lib/session-guard";
-import type { Case360, CaseOption, LegalAreaOption } from "@/lib/types";
+import type {
+  Case360,
+  CaseMilestoneRecord,
+  CaseOption,
+  ClientRequestRecord,
+  LegalAreaOption,
+} from "@/lib/types";
 
 /**
  * The 360 view of one case.
@@ -79,7 +87,7 @@ export default async function CaseDetailPage({
   const record = view.case;
   const isOpen = record.status !== "cerrado" && record.status !== "archivado";
 
-  const [clients, lawyers, areas] = await Promise.all([
+  const [clients, lawyers, areas, clientRequests, milestones] = await Promise.all([
     apiFetch<{ items: Array<{ id: string; display_name: string }> }>(
       "/api/v1/clients",
       { query: { skip: 0, limit: 200, include_inactive: 1 } },
@@ -89,6 +97,8 @@ export default async function CaseDetailPage({
       { query: { skip: 0, limit: 200, status: "activo" } },
     ).catch(() => ({ items: [] })),
     apiFetch<LegalAreaOption[]>("/api/v1/lawyers/legal-areas").catch(() => []),
+    apiFetch<ClientRequestRecord[]>(`/api/v1/cases/${caseId}/client-requests`).catch(() => []),
+    apiFetch<CaseMilestoneRecord[]>(`/api/v1/cases/${caseId}/milestones`).catch(() => []),
   ]);
 
   const toOption = (items: Array<{ id: string; label: string }>): CaseOption[] => items;
@@ -290,6 +300,9 @@ export default async function CaseDetailPage({
               )}
             </div>
           </section>
+
+          <ClientRequestsPanel caseId={record.id} items={clientRequests} />
+          <CaseMilestonesPanel caseId={record.id} items={milestones} />
         </div>
 
         <aside className="space-y-6">

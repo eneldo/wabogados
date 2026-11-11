@@ -118,6 +118,13 @@ class Settings(BaseSettings):
     retention_hot_days: int = 90
     retention_tiering_enabled: bool = True
 
+    # AI Jurídica (generación asistida). Sin proveedor configurado, el módulo
+    # sigue operando con búsqueda léxica y resumen extractivo (sin fuga de datos).
+    ai_provider: str | None = None  # "openai" | "anthropic" | None
+    ai_api_key: str | None = None
+    ai_model: str = "gpt-4o-mini"
+    ai_max_tokens: int = 800
+
     # Off site backup target. A backup that stays on the same host as the data it
     # protects survives nothing, so this is expected to be configured in
     # production. Empty means "not configured", never "skip silently".

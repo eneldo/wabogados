@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Seal } from "./primitives";
+import { BrandLogo } from "./brand-logo";
 
 /**
  * The shell both audiences share.
@@ -26,11 +26,13 @@ export function Masthead({
   return (
     <div className="min-h-screen">
       <header className="border-b border-rule-strong bg-surface">
-        <div className="mx-auto max-w-6xl px-6 pt-8 pb-0">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <Link href="/" className="group flex items-center gap-3">
-              <Seal className="size-10 transition-transform duration-300 group-hover:rotate-[-6deg]" />
-              <span>
+        <div className="workspace-container pt-6 pb-0">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div className="flex min-w-0 flex-wrap items-center gap-4">
+              <Link href="/" aria-label="WABOGADOS, web pública">
+                <BrandLogo size="compact" priority />
+              </Link>
+              <span className="min-w-0">
                 <span className="block text-[0.625rem] font-semibold uppercase tracking-[0.28em] text-ink-muted">
                   {eyebrow}
                 </span>
@@ -38,7 +40,7 @@ export function Masthead({
                   {title}
                 </span>
               </span>
-            </Link>
+            </div>
 
             {profile ? <ProfileBadge profile={profile} /> : null}
           </div>
@@ -76,9 +78,9 @@ export function Masthead({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
+      <main className="workspace-container py-10">{children}</main>
 
-      <footer className="mx-auto max-w-6xl px-6 pb-12">
+      <footer className="workspace-container pb-12">
         <div className="border-t border-rule pt-5 text-xs text-ink-faint">
           <p>
             WABOGADOS V1 · La información de este portal es confidencial y está
@@ -98,7 +100,7 @@ function ProfileBadge({
   return (
     <div className="flex items-center gap-3">
       {profile.unread && profile.unread > 0 ? (
-        <span className="live-dot inline-flex size-6 items-center justify-center rounded-full bg-wax text-[0.6875rem] font-bold text-paper">
+        <span className="live-dot inline-flex size-6 items-center justify-center rounded-full bg-action text-[0.6875rem] font-bold text-on-action">
           {profile.unread > 9 ? "9+" : profile.unread}
         </span>
       ) : null}

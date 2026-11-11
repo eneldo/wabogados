@@ -74,12 +74,18 @@ export default async function CasesPage() {
                   Abierto el {formatDate(item.opened_at)}
                 </p>
 
-                <div className="mt-5 border-t border-rule pt-4">
+                <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 border-t border-rule pt-4">
                   <Link
-                    href={`/expedientes/${item.id}/evidencias`}
+                    href={`/expedientes/${item.id}`}
                     className="text-xs font-semibold uppercase tracking-[0.1em] text-wax underline-offset-4 transition-colors hover:underline"
                   >
-                    Gestor de evidencias →
+                    Ver expediente →
+                  </Link>
+                  <Link
+                    href={`/expedientes/${item.id}/evidencias`}
+                    className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted underline-offset-4 transition-colors hover:text-ink hover:underline"
+                  >
+                    Evidencias →
                   </Link>
                 </div>
               </Card>

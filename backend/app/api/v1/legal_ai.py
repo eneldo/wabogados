@@ -1,6 +1,6 @@
 """Legal AI API (MASTER_PROMPT V5).
 
-Three routes, and one of them exists to say **no**:
+Four routes, and one of them is the firm's decision rather than the code's:
 
 - `GET /ai/search` — real lexical search over the firm's material, filtered by the
   same case scope every other module uses.
@@ -10,15 +10,20 @@ Three routes, and one of them exists to say **no**:
   absent. It is a route rather than a comment because the screen has to be able to
   show it, and because a capability that is only documented is a capability nobody
   checks.
-
-There is no generate route, and that is deliberate: without a provider there is
-nothing behind it, and a route that answers with fiction is worse than a 404.
+- `POST /ai/generate` — a draft from the configured provider (OpenAI or Anthropic).
+  Without `AI_PROVIDER` and `AI_API_KEY` in the environment it answers **503**, and
+  the screen says so instead of offering a dead button. Every response carries
+  `requires_review: true`: a draft is raw material for a lawyer, never a finished
+  text. What leaves through this route is decided by the firm — sending client
+  data to an external provider is a professional-secrecy decision, not a setting.
 """
 
-from typing import Annotated
+import logging
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session, get_user_scope, require_permission
@@ -31,9 +36,12 @@ from app.schemas.legal_ai import (
 from app.services.cases import CaseScope
 from app.services.legal_ai import (
     LegalSearchService,
+    generate_draft,
     meaningful_terms,
     provider_configured,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -114,4 +122,38 @@ async def read_provider_status(
     return ProviderStatusResponse(**provider_configured())
 
 
-__all__ = ["read_provider_status", "router", "search_material", "summarize_document"]
+class GenerateRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+    context: str = Field(default="", max_length=12000)
+
+
+@router.post("/generate")
+async def generate_draft_endpoint(
+    payload: GenerateRequest,
+    _: Annotated[User, Depends(require_permission("ai:summarize"))],
+) -> dict[str, Any]:
+    try:
+        draft = await generate_draft(payload.prompt, payload.context)
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+        ) from error
+    except Exception as error:
+        # The provider's own message can carry account details, quotas or endpoint
+        # internals; none of that belongs in a response. The log keeps the truth,
+        # the answer keeps the shape.
+        logger.exception("El proveedor de IA falló al generar un borrador")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="El proveedor de IA no pudo generar el borrador. Inténtalo de nuevo.",
+        ) from error
+    return {"draft": draft, "requires_review": True}
+
+
+__all__ = [
+    "generate_draft_endpoint",
+    "read_provider_status",
+    "router",
+    "search_material",
+    "summarize_document",
+]

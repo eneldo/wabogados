@@ -110,7 +110,7 @@ export function EvidenceManager({
                   aria-pressed={view === option}
                   className={`px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] transition-colors ${
                     view === option
-                      ? "bg-ink text-paper"
+                      ? "bg-shell text-paper"
                       : "bg-surface text-ink-muted hover:text-ink"
                   }`}
                 >
@@ -177,7 +177,7 @@ export function EvidenceManager({
                   aria-pressed={filter === value}
                   className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                     filter === value
-                      ? "bg-wax text-paper"
+                      ? "bg-action text-on-action"
                       : "bg-paper-deep text-ink-soft hover:bg-rule"
                   }`}
                 >

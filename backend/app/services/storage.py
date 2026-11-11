@@ -17,9 +17,13 @@ Every write and every tier change is verifiable: the backend returns the stored
 digest so a caller can compare it with the value it intended to store.
 """
 
+import hashlib
+import os
 import re
+import tempfile
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
@@ -28,9 +32,61 @@ from app.core.constants import StorageTier
 
 DEFAULT_EXTENSION = ".bin"
 
+#: Chunk size used when spooling a stream to disk. 1 MiB keeps the event loop's
+#: per-iteration cost trivial without thousands of syscalls for a 500 MB asset.
+SPOOL_CHUNK_BYTES = 1 << 20
+
 
 class StorageError(Exception):
     """Raised when a file cannot be stored, read back or moved between tiers."""
+
+
+@dataclass(frozen=True)
+class Spool:
+    """Result of draining a chunk stream into a temporary file."""
+
+    path: Path
+    size_bytes: int
+    sha256: str
+
+
+async def spool_to_disk(
+    source: AsyncIterator[bytes],
+    directory: Path,
+    stem: str,
+    *,
+    suffix: str = ".partial",
+) -> Spool:
+    """Drain `source` into a temporary file inside `directory`.
+
+    Shared by both backends: the chunk stream is consumed here — on the event
+    loop, because it is asynchronous — while the digest and size accumulate,
+    and the temp file is removed if anything raises, so a failed or aborted
+    upload leaves no fragment behind. `spool_to_disk` being the only place that
+    touches `source` is what keeps the cap enforcement of the caller honest:
+    an exception from the source propagates as cleanup, not as a truncated
+    object.
+    """
+    digest = hashlib.sha256()
+    size = 0
+    handle = tempfile.NamedTemporaryFile(
+        dir=str(directory), prefix=stem, suffix=suffix, delete=False
+    )
+    try:
+        async for chunk in source:
+            if not chunk:
+                continue
+            handle.write(chunk)
+            digest.update(chunk)
+            size += len(chunk)
+        handle.flush()
+        os.fsync(handle.fileno())
+    except BaseException:
+        handle.close()
+        Path(handle.name).unlink(missing_ok=True)
+        raise
+    handle.close()
+    return Spool(path=Path(handle.name), size_bytes=size, sha256=digest.hexdigest())
 
 
 @dataclass(frozen=True)
@@ -87,6 +143,25 @@ class StorageBackend(Protocol):
         self, key: str, content: bytes, *, tier: StorageTier = StorageTier.HOT
     ) -> StoredObject:
         """Store bytes and return the digest that was persisted."""
+        ...
+
+    async def write_stream(
+        self,
+        key: str,
+        source: AsyncIterator[bytes],
+        *,
+        tier: StorageTier = StorageTier.HOT,
+    ) -> StoredObject:
+        """Consume an asynchronous chunk stream and store it as one object.
+
+        The multimedia library is the caller this exists for: a capped upload
+        used to answer `read(cap + 1)` and hold a whole recording in memory
+        before anything reached storage, which made the cap a memory ceiling
+        rather than only a policy one. An implementation must spool the chunks
+        and compute the digest **while writing**, so the returned `StoredObject`
+        describes the object that exists — the same guarantee `write` gives —
+        and a failure has to leave no partial object behind.
+        """
         ...
 
     async def read(self, key: str) -> bytes:
@@ -301,6 +376,7 @@ async def initialize_storage(
 __all__ = [
     "DEFAULT_EXTENSION",
     "EVIDENCE_AREAS",
+    "SPOOL_CHUNK_BYTES",
     "StorageBackend",
     "StorageError",
     "StorageTier",
@@ -312,4 +388,5 @@ __all__ = [
     "build_message_key",
     "build_storage",
     "initialize_storage",
+    "spool_to_disk",
 ]

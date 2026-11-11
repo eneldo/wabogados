@@ -151,6 +151,7 @@ export async function apiFetch<T>(
    * before the render, which is the only place where the new token is visible
    * to the code that needs it.
    */
+  if (response.status === 401) throw new ApiNotAuthenticated();
   if (!response.ok) throw new ApiRequestError(await readError(response));
   if (response.status === 204) return undefined as T;
 

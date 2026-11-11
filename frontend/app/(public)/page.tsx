@@ -2,6 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { ColumnsIllustration } from "@/components/public/columns-illustration";
+import { apiFetchOr } from "@/lib/api";
+import { landingFor } from "@/lib/landing";
+import { requireSession } from "@/lib/session-guard";
+import type { LegalAreaOption } from "@/lib/types";
 import { ContactForm } from "@/components/public/contact-form";
 import { NewsSection } from "@/components/public/news-section";
 import { Parallax } from "@/components/public/parallax";
@@ -11,8 +15,8 @@ import { SiteFooter, SiteHeader } from "@/components/public/site-header";
 /**
  * The public site.
  *
- * `WABOGADOS_web.html` is the visual reference. Its composition, the order of
- * the sections and the corporate palette are kept. What is improved is the
+ * `WABOGADOS_web.html` is the composition reference. The supplied logo and
+ * `wabogado-2.jpg` now define the corporate palette. What is improved is the
  * craft: a fluid type scale so the page is composed at every width rather than
  * tolerated at small ones, and motion that gives the page a pulse without
  * moving anything the reader needs to read.
@@ -30,8 +34,8 @@ import { SiteFooter, SiteHeader } from "@/components/public/site-header";
  *    left out.
  * 3. No email address. The firm publishes it behind Cloudflare's email
  *    protection, so it is not in the page source and is not guessed.
- * 4. The form says it sends nothing, because it does not, and no contact
- *    endpoint exists yet.
+ * 4. The consultation form uses the real API; legal copy still awaits the
+ *    firm's approval, so the pending notices are retained.
  */
 
 /*
@@ -40,6 +44,8 @@ import { SiteFooter, SiteHeader } from "@/components/public/site-header";
   dropping three areas the firm actually practises would be trimming the firm's
   offer to fit the design.
 */
+const GLYPHS = ["⚖", "⌂", "▥", "▤", "◈", "◉", "❖", "§", "¶", "✦"];
+
 const SERVICES = [
   {
     glyph: "⚖",
@@ -156,23 +162,66 @@ const ALLIES = [
   { name: "Wolfgang Ramírez", image: "/aliados/wolfgang-ramirez.jpg" },
 ];
 
-export default function PublicHomePage() {
-  return (
-    <>
-      {/*
-        Paints the ivory across the entire canvas, behind everything. See
-        `.site-canvas`: without it the sides of the measure show the private
-        app's paper tone and the page appears to have an edge down the middle of
-        a wide screen.
-      */}
-      <div className="site-canvas" aria-hidden="true" />
+export default async function PublicHomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ analisis?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
+  const analysisPage = Math.max(1, Number(params.analisis ?? "1") || 1);
 
+  const areas = await apiFetchOr<LegalAreaOption[]>(
+    [],
+    "/api/v1/public/legal-areas",
+    { anonymous: true },
+  );
+
+  const health = await apiFetchOr<{ status?: string; service?: string }>(
+    { status: "unknown" },
+    "/api/v1/health/ready",
+    { anonymous: true },
+  );
+
+  const publicLawyers = await apiFetchOr<
+    Array<{ id: string; full_name: string; photo_url: string | null; specialties: string[]; legal_areas: string[] }>
+  >([], "/api/v1/public/lawyers", { anonymous: true });
+
+  const announcements = await apiFetchOr<
+    Array<{ key: string; value: string; description: string | null; updated_at: string }>
+  >([], "/api/v1/public/announcements", { anonymous: true });
+
+  const analysesResponse = await apiFetchOr<{
+    items: Array<{
+      id: string;
+      title: string;
+      slug: string;
+      summary: string | null;
+      author_name: string | null;
+      published_at: string | null;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+  }>(
+    { items: [], total: 0, page: 1, page_size: 6 },
+    `/api/v1/public/analyses?page=${analysisPage}&page_size=6`,
+    { anonymous: true },
+  );
+
+  const session = await requireSession();
+  const portalHref =
+    session.kind === "ok"
+      ? landingFor(session.profile.roles, session.profile.permissions).href
+      : null;
+
+  return (
+    <div className="public-site">
       <SiteHeader />
 
       <main>
         {/* --- Hero ------------------------------------------------------ */}
         <div id="inicio" className="wrap">
-          <div className="grid items-center gap-14 py-14 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-28">
+          <div className="site-hero grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
             <div>
               <Reveal delay={0}>
                 <p className="site-eyebrow">Derecho con visión de futuro</p>
@@ -195,9 +244,15 @@ export default function PublicHomePage() {
 
               <Reveal delay={240}>
                 <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <a href="#contacto" className="site-btn justify-center">
-                    Solicitar consulta <span aria-hidden="true">↗</span>
-                  </a>
+                  {portalHref ? (
+                    <Link href={portalHref} className="site-btn justify-center">
+                      Ir a mi portal <span aria-hidden="true">↗</span>
+                    </Link>
+                  ) : (
+                    <a href="#contacto" className="site-btn justify-center">
+                      Solicitar consulta <span aria-hidden="true">↗</span>
+                    </a>
+                  )}
                   <a href="#servicios" className="site-btn line justify-center">
                     Nuestros servicios
                   </a>
@@ -257,23 +312,31 @@ export default function PublicHomePage() {
             </Reveal>
 
             <div className="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:mt-16 lg:grid-cols-4">
-              {SERVICES.map((service, index) => (
+              {(areas.length > 0
+                ? areas.map((area, index) => ({
+                    key: area.id,
+                    title: area.name,
+                    body: area.description ?? "Área de práctica del despacho.",
+                    glyph: GLYPHS[index % GLYPHS.length],
+                    lead: index === 0,
+                  }))
+                : SERVICES.map((service, index) => ({
+                    key: service.title,
+                    title: service.title,
+                    body: service.body,
+                    glyph: service.glyph,
+                    lead: index === 0,
+                  }))
+              ).map((service, index) => (
                 <Reveal
-                  key={service.title}
+                  key={service.key}
                   delay={index * 80}
                   as="article"
-                  /*
-                    The first area spans the full row at every width that has
-                    more than one column. Seven cards in four columns is 4 + 3
-                    and seven in two is 2+2+2+1: both leave a hole at the end of
-                    the last row that reads as an oversight rather than a
-                    composition.
-                  */
-                  className={`h-full ${index === 0 ? "sm:col-span-2" : ""}`}
+                  className={`h-full ${service.lead ? "sm:col-span-2" : ""}`}
                 >
                   <div
                     className={`service-card flex h-full flex-col ${
-                      index === 0 ? "service-card--lead" : ""
+                      service.lead ? "service-card--lead" : ""
                     }`}
                   >
                     <span className="service-glyph" aria-hidden="true">
@@ -281,7 +344,7 @@ export default function PublicHomePage() {
                     </span>
                     <h3
                       className={`site-display mt-5 ${
-                        index === 0 ? "text-2xl sm:text-[1.8rem]" : "text-xl sm:text-[1.45rem]"
+                        service.lead ? "text-2xl sm:text-[1.8rem]" : "text-xl sm:text-[1.45rem]"
                       }`}
                     >
                       {service.title}
@@ -492,7 +555,21 @@ export default function PublicHomePage() {
             </div>
 
             <div className="mt-14 grid gap-8 sm:grid-cols-3">
-              {TEAM.map((member, index) => (
+              {(publicLawyers.some((lawyer) => lawyer.photo_url)
+                ? publicLawyers
+                    .filter((lawyer) => lawyer.photo_url)
+                    .map((lawyer) => ({
+                      name: lawyer.full_name,
+                      role:
+                        lawyer.specialties[0] ??
+                        lawyer.legal_areas[0] ??
+                        "Abogado",
+                      image: lawyer.photo_url as string,
+                      width: 480,
+                      height: 480,
+                    }))
+                : TEAM
+              ).map((member, index) => (
                 <Reveal key={member.name} delay={index * 90}>
                   <figure className="portrait">
                     <Image
@@ -571,6 +648,94 @@ export default function PublicHomePage() {
           </div>
         </section>
 
+        {announcements.length > 0 ? (
+          <section className="site-section bg-ivory-warm">
+            <div className="wrap">
+              <p className="site-eyebrow">Novedades</p>
+              <h2 className="site-display site-section-title mt-5">
+                Información actualizada del despacho.
+              </h2>
+              <div className="mt-8 space-y-4">
+                {announcements.map((item) => (
+                  <article
+                    key={item.key}
+                    className="border border-ivory-line bg-surface p-6"
+                  >
+                    {item.description ? (
+                      <p className="text-[10px] tracking-[0.2em] text-gold-bright">
+                        {item.description}
+                      </p>
+                    ) : null}
+                    <p className="site-body-sm mt-2">{item.value}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="site-section">
+          <div className="wrap">
+            <p className="site-eyebrow">Criterio Legal</p>
+            <h2 className="site-display site-section-title mt-5">
+              Últimos análisis del despacho.
+            </h2>
+            {analysesResponse.items.length === 0 ? (
+              <p className="site-body mt-6 max-w-[52ch]">
+                Próximamente publicaremos análisis y criterios jurídicos.
+              </p>
+            ) : (
+              <>
+                <div className="mt-8 grid gap-6 sm:grid-cols-2">
+                  {analysesResponse.items.map((item) => (
+                    <article
+                      key={item.id}
+                      className="border border-ivory-line bg-surface p-6"
+                    >
+                      <h3 className="site-display text-xl">{item.title}</h3>
+                      {item.summary ? (
+                        <p className="site-body-sm mt-2">{item.summary}</p>
+                      ) : null}
+                      <div className="mt-4 flex items-center justify-between text-xs text-ink-muted">
+                        <span>{item.author_name ?? "Despacho"}</span>
+                        <span>
+                          {item.published_at
+                            ? new Date(item.published_at).toLocaleDateString("es-CO")
+                            : ""}
+                        </span>
+                      </div>
+                      <Link
+                        href={`/analisis/${item.slug}`}
+                        className="mt-4 inline-block text-xs font-semibold uppercase tracking-[0.1em] text-wax underline-offset-4 hover:underline"
+                      >
+                        Leer análisis →
+                      </Link>
+                    </article>
+                  ))}
+                </div>
+                <div className="mt-8 flex gap-3">
+                  {analysisPage > 1 ? (
+                    <Link
+                      href={`/?analisis=${analysisPage - 1}#criterio`}
+                      className="site-btn line justify-center"
+                    >
+                      Anterior
+                    </Link>
+                  ) : null}
+                  {analysisPage * analysesResponse.page_size < analysesResponse.total ? (
+                    <Link
+                      href={`/?analisis=${analysisPage + 1}#criterio`}
+                      className="site-btn justify-center"
+                    >
+                      Siguiente
+                    </Link>
+                  ) : null}
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
         {/* --- Contact ------------------------------------------------------ */}
         <section id="contacto" className="site-section">
           <div className="wrap grid gap-14 lg:grid-cols-2 lg:gap-20">
@@ -608,6 +773,22 @@ export default function PublicHomePage() {
                   <span className="mt-1.5 block text-slate">
                     {CONTACT.schedule}
                   </span>
+                  <span className="mt-1.5 block text-slate">
+                    Estado del sistema:{" "}
+                    <strong>
+                      {health.status === "ready" ? "Operativo" : "No disponible"}
+                    </strong>
+                  </span>
+
+                  <div className="mt-6 overflow-hidden rounded-card border border-ivory-line">
+                    <iframe
+                      title="Ubicación del despacho"
+                      src="https://www.openstreetmap.org/export/embed.html?bbox=-74.076%2C4.600%2C-74.068%2C4.606&layer=mapnik&marker=4.603%2C-74.072"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="h-64 w-full border-0"
+                    />
+                  </div>
                   <span className="mt-3 block text-slate">
                     Correo electrónico: <strong>por confirmar</strong>. El sitio
                     de la firma lo publica protegido y no puede leerse desde el
@@ -637,6 +818,6 @@ export default function PublicHomePage() {
       </main>
 
       <SiteFooter />
-    </>
+    </div>
   );
 }

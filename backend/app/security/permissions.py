@@ -42,6 +42,10 @@ CLIENT_LAWYER_PERMISSIONS: tuple[PermissionDefinition, ...] = (
     PermissionDefinition("lawyers:update", "lawyers", "update", "Actualizar abogados"),
     PermissionDefinition("lawyers:delete", "lawyers", "delete", "Desactivar abogados"),
     PermissionDefinition("legal_areas:read", "legal_areas", "read", "Consultar áreas jurídicas"),
+    PermissionDefinition("analyses:read", "analyses", "read", "Consultar análisis jurídicos"),
+    PermissionDefinition("analyses:create", "analyses", "create", "Crear análisis jurídicos"),
+    PermissionDefinition("analyses:update", "analyses", "update", "Actualizar análisis jurídicos"),
+    PermissionDefinition("analyses:delete", "analyses", "delete", "Desactivar análisis jurídicos"),
 )
 
 ROLE_DEFINITIONS: dict[str, str] = {
@@ -137,6 +141,34 @@ DOCUMENT_PERMISSIONS: tuple[PermissionDefinition, ...] = (
     ),
 )
 
+
+CLIENT_REQUEST_PERMISSIONS: tuple[PermissionDefinition, ...] = (
+    PermissionDefinition(
+        "client_requests:read",
+        "client_requests",
+        "read",
+        "Consultar solicitudes al cliente en expedientes con alcance",
+    ),
+    PermissionDefinition(
+        "client_requests:create",
+        "client_requests",
+        "create",
+        "Crear solicitudes o tareas para el cliente",
+    ),
+    PermissionDefinition(
+        "client_requests:update",
+        "client_requests",
+        "update",
+        "Actualizar, revisar o cerrar solicitudes al cliente",
+    ),
+    PermissionDefinition(
+        "client_requests:respond",
+        "client_requests",
+        "respond",
+        "Responder solicitudes propias como cliente",
+    ),
+)
+
 LEGAL_AREAS: tuple[tuple[str, str], ...] = (
     ("Civil", "Derecho civil y obligaciones"),
     ("Penal", "Derecho penal y defensa"),
@@ -150,6 +182,13 @@ LEGAL_AREAS: tuple[tuple[str, str], ...] = (
     ("Inmobiliario", "Derecho inmobiliario y notarial"),
     ("Bancario", "Derecho financiero y bancario"),
     ("Ambiental", "Derecho ambiental"),
+)
+
+
+STAFF_CLIENT_REQUEST_PERMISSIONS: tuple[str, ...] = (
+    "client_requests:read",
+    "client_requests:create",
+    "client_requests:update",
 )
 
 STAFF_LAWYER_PERMISSIONS: tuple[str, ...] = (
@@ -532,8 +571,20 @@ AI_PERMISSIONS: tuple[PermissionDefinition, ...] = (
 )
 
 #: Reading the index is as safe as reading the modules it covers: every hit is a
-#: row the caller could already reach through its own screen. No generate grant.
+#: row the caller could already reach through its own screen. Generating rides on
+#: `ai:summarize` today; a dedicated `ai:generate` grant is a candidate follow-up
+#: so the firm can hand out summarising without handing out the provider's pen.
 STAFF_AI_PERMISSIONS: tuple[str, ...] = ("ai:search", "ai:summarize")
+
+#: Thought leadership (legal_analyses). The definitions live in
+#: `CLIENT_LAWYER_PERMISSIONS` next to the masters they serve; these are the
+#: strings the role matrix consumes. Authoring is staff work — the client role
+#: never sees the drafting surface, only what the public site publishes.
+STAFF_ANALYSES_READ_PERMISSIONS: tuple[str, ...] = ("analyses:read",)
+STAFF_ANALYSES_WRITE_PERMISSIONS: tuple[str, ...] = (
+    "analyses:read",
+    "analyses:create",
+)
 
 
 ADMINISTRATOR_PERMISSIONS: tuple[str, ...] = tuple(
@@ -553,6 +604,7 @@ ADMINISTRATOR_PERMISSIONS: tuple[str, ...] = tuple(
         *MEDIA_PERMISSIONS,
         *BILLING_PERMISSIONS,
         *AI_PERMISSIONS,
+        *CLIENT_REQUEST_PERMISSIONS,
     )
 )
 
@@ -570,7 +622,10 @@ ROLE_PERMISSION_MATRIX: dict[str, tuple[str, ...]] = {
     + STAFF_CONSULTATION_PERMISSIONS
     + STAFF_MEDIA_PERMISSIONS
     + STAFF_BILLING_PERMISSIONS
-    + STAFF_AI_PERMISSIONS,
+    + STAFF_AI_PERMISSIONS
+    + STAFF_ANALYSES_READ_PERMISSIONS
+    + STAFF_ANALYSES_WRITE_PERMISSIONS
+    + STAFF_CLIENT_REQUEST_PERMISSIONS,
     "asistente": STAFF_LAWYER_PERMISSIONS
     + ASSISTANT_CASE_PERMISSIONS
     + STAFF_ACTION_PERMISSIONS
@@ -582,11 +637,14 @@ ROLE_PERMISSION_MATRIX: dict[str, tuple[str, ...]] = {
     + STAFF_CONSULTATION_PERMISSIONS
     + STAFF_MEDIA_PERMISSIONS
     + STAFF_BILLING_PERMISSIONS
-    + STAFF_AI_PERMISSIONS,
+    + STAFF_AI_PERMISSIONS
+    + STAFF_ANALYSES_READ_PERMISSIONS
+    + STAFF_CLIENT_REQUEST_PERMISSIONS,
     "cliente": CLIENT_CASE_PERMISSIONS
     + CLIENT_READ_PERMISSIONS
     + CLIENT_EVIDENCE_PERMISSIONS
-    + CLIENT_MESSAGE_PERMISSIONS,
+    + CLIENT_MESSAGE_PERMISSIONS
+    + ("client_requests:read", "client_requests:respond"),
 }
 
 
@@ -606,6 +664,7 @@ def get_permission_definitions() -> tuple[PermissionDefinition, ...]:
         *MEDIA_PERMISSIONS,
         *BILLING_PERMISSIONS,
         *AI_PERMISSIONS,
+        *CLIENT_REQUEST_PERMISSIONS,
     )
 
 

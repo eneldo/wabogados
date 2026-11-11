@@ -91,10 +91,10 @@ export function CustodyDrawer({
         type="button"
         aria-label="Cerrar"
         onClick={onClose}
-        className="absolute inset-0 bg-ink/35 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-overlay/70 backdrop-blur-[2px]"
       />
 
-      <aside className="rise relative flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-rule-strong bg-paper shadow-[-20px_0_60px_-30px_rgba(25,27,24,0.6)]">
+      <aside className="rise relative flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-rule-strong bg-canvas shadow-[-20px_0_60px_-30px_rgba(25,27,24,0.6)]">
         <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-rule bg-surface px-6 py-5">
           <div className="min-w-0">
             <Label>{detail ? detail.case_number : "Cargando"}</Label>
@@ -227,7 +227,7 @@ export function CustodyDrawer({
               <section>
                 <a
                   href={`/api/descarga/evidences/${detail.id}/original`}
-                  className="inline-flex items-center gap-2 rounded-card bg-ink px-4 py-2.5 text-sm font-semibold text-paper transition-colors hover:bg-ink-soft"
+                  className="inline-flex items-center gap-2 rounded-card bg-action px-4 py-2.5 text-sm font-semibold text-on-action transition-colors hover:bg-action-hover"
                 >
                   Descargar original
                 </a>
@@ -251,7 +251,7 @@ export function CustodyDrawer({
                       ) : null}
                       <span
                         aria-hidden="true"
-                        className="relative mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-wax bg-paper"
+                        className="relative mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-wax bg-canvas"
                       />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-ink">

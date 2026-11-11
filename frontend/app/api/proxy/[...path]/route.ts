@@ -24,6 +24,8 @@ const ALLOWED_PREFIXES = [
   "/api/v1/conversations",
   "/api/v1/notifications",
   "/api/v1/messages/",
+  "/api/v1/analyses",
+  "/api/v1/ai",
 ] as const;
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "PUT", "DELETE"]);

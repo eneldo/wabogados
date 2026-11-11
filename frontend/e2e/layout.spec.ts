@@ -30,6 +30,8 @@ const ADMIN_ROUTES = [
   "/admin/seguridad",
   "/admin/configuracion",
   "/admin/solicitudes",
+  "/admin/facturacion",
+  "/admin/ia-juridica",
 ];
 
 async function isSignedOut(page: import("@playwright/test").Page): Promise<boolean> {

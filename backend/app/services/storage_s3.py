@@ -13,6 +13,7 @@ more expensive than the extra read.
 import hashlib
 import logging
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -28,6 +29,7 @@ from app.services.storage import (
     StoredStat,
     build_evidence_key,
     build_key,
+    spool_to_disk,
 )
 
 logger = logging.getLogger(__name__)
@@ -159,6 +161,47 @@ class S3Storage:
             key=key,
             size_bytes=len(content),
             sha256=hashlib.sha256(content).hexdigest(),
+            tier=tier,
+        )
+
+    async def write_stream(
+        self,
+        key: str,
+        source: AsyncIterator[bytes],
+        *,
+        tier: StorageTier = StorageTier.HOT,
+    ) -> StoredObject:
+        """Spool to a temp file, then `upload_fileobj` from a worker thread.
+
+        The chunk stream is asynchronous and `boto3` is synchronous, so the two
+        cannot run inside the same thread. The bridge is a real file: the spool
+        lives on disk (the cap the caller enforces bounds it, and disk is where
+        `UploadFile` already lives), `upload_fileobj` parts it in the thread for
+        multipart upload, and the digest computed while spooling is what the
+        result carries — it describes the bytes, not the network's optimism.
+        """
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory(prefix="sipres-biblioteca-") as staging:
+            directory = Path(staging)
+            spool = await spool_to_disk(source, directory, "s3")
+            storage_class = self._storage_class_for(tier)
+            # ASYNC230 on purpose: boto3 needs a real file object, the open is
+            # the only synchronous step on this thread, and the upload itself is
+            # bridged to a worker thread right below.
+            with open(spool.path, "rb") as handle:  # noqa: ASYNC230
+                extra: dict[str, Any] = {}
+                if storage_class:
+                    extra["ExtraArgs"] = {"StorageClass": storage_class}
+                await anyio.to_thread.run_sync(
+                    lambda: self.client.upload_fileobj(
+                        handle, self.bucket, key, **extra
+                    )
+                )
+        return StoredObject(
+            key=key,
+            size_bytes=spool.size_bytes,
+            sha256=spool.sha256,
             tier=tier,
         )
 

@@ -4,6 +4,8 @@ import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import "./public-site.css";
 
+import { WebVitals } from "@/components/web-vitals";
+
 /*
   Three faces, each with a job. Fraunces carries the voice of the document.
   IBM Plex Sans is the interface: institutional, designed for German technical
@@ -61,6 +63,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             __html: "document.documentElement.classList.add('js')",
           }}
         />
+        <WebVitals />
         {children}
       </body>
     </html>

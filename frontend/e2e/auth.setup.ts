@@ -26,11 +26,12 @@ setup("authenticate", async ({ page }) => {
     );
   }
 
-  await page.goto("/login");
+  await page.goto("/login", { waitUntil: "networkidle" });
   await page.fill('input[type="email"]', EMAIL as string);
   await page.fill('input[type="password"]', PASSWORD as string);
   await page.click('button[type="submit"]');
 
-  await expect(page).not.toHaveURL(/\/login/);
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
   await page.context().storageState({ path: STORAGE });
 });

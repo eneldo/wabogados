@@ -457,6 +457,38 @@ export type Case360 = {
   mensajes: CaseSection;
 };
 
+export type ActionRecord = {
+  id: string;
+  case_id: string;
+  case_number: string;
+  action_type: string;
+  occurred_at: string;
+  description: string;
+  result: string | null;
+  responsible_lawyer_id: string | null;
+  responsible_lawyer_name: string | null;
+  visibility: "interna" | "equipo" | "publicada";
+  next_action: string | null;
+  next_action_at: string | null;
+  created_by: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CaseTimelineEntry = {
+  action: ActionRecord;
+  case_status: string;
+  is_pending: boolean;
+};
+
+export type CaseTimelineResponse = {
+  case_id: string;
+  case_number: string;
+  total: number;
+  entries: CaseTimelineEntry[];
+};
+
 /** A case in the list. What the `client_id` and `lawyer_id` selects need. */
 export type CaseOption = { id: string; label: string };
 
@@ -891,4 +923,48 @@ export type LegalProviderStatus = {
   available: boolean;
   missing: string[];
   app_name: string;
+};
+
+
+export type ClientRequestRecord = {
+  id: string;
+  case_id: string;
+  case_number: string | null;
+  case_title: string | null;
+  client_id: string;
+  request_type: "documento" | "informacion" | "tarea" | string;
+  title: string;
+  description: string | null;
+  status: "pendiente" | "respondida" | "revisada" | "cancelada" | string;
+  priority: "normal" | "alta" | "urgente" | string;
+  due_at: string | null;
+  requested_by: string | null;
+  requested_by_name: string | null;
+  response_text: string | null;
+  responded_at: string | null;
+  responded_by: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  review_note: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  is_overdue: boolean;
+};
+
+
+export type CaseMilestoneRecord = {
+  id: string;
+  case_id: string;
+  stage_key: string;
+  title: string;
+  description: string | null;
+  status: "pendiente" | "en_curso" | "completado" | string;
+  planned_at: string | null;
+  completed_at: string | null;
+  is_published: boolean;
+  published_at: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 };

@@ -92,7 +92,7 @@ export function EvidenceThumb({
       )}
 
       {mimeType && !isImage ? (
-        <span className="absolute right-2 bottom-2 rounded-sm bg-ink/80 px-1.5 py-0.5 text-[0.625rem] font-semibold tracking-wider text-paper">
+        <span className="absolute right-2 bottom-2 rounded-sm bg-overlay/80 px-1.5 py-0.5 text-[0.625rem] font-semibold tracking-wider text-paper">
           {extension.toUpperCase()}
         </span>
       ) : null}

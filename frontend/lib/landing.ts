@@ -16,14 +16,20 @@ export type Landing = {
   label: string;
 };
 
+export function isClientOnly(roles: readonly string[]): boolean {
+  return roles.includes("cliente") && roles.every((role) => role === "cliente");
+}
+
 export function landingFor(
   roles: readonly string[],
   permissions: readonly string[],
 ): Landing {
-  const isClient =
-    roles.includes("cliente") && !roles.some((role) => role !== "cliente");
+  if (isClientOnly(roles)) return { href: "/portal", label: "Portal del cliente" };
 
-  if (isClient) return { href: "/portal", label: "Portal del cliente" };
+  // Administrator always goes to the administration dashboard.
+  if (roles.includes("administrador")) {
+    return { href: "/admin", label: "Panel de administración" };
+  }
 
   // Staff with a wide read sees the whole case book; everyone else sees the
   // cases they are assigned to. Both are the same surface, scoped differently.

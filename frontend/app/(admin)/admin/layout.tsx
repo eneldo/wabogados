@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { AdminMobileMenu } from "@/components/admin/admin-mobile-menu";
 import { AdminRail } from "@/components/admin/admin-rail";
-import { Seal } from "@/components/primitives";
+import { BrandLogo } from "@/components/brand-logo";
 import { signOut } from "@/features/admin/sign-out";
 import { visibleModules } from "@/lib/admin-nav";
 import { initialsOf } from "@/lib/format";
@@ -57,6 +57,7 @@ export default async function AdminLayout({
     */
     return (
       <main className="mx-auto max-w-2xl px-6 py-24 text-center">
+        <BrandLogo size="sidebar" />
         <h1 className="font-display text-2xl text-ink">Servicio no disponible</h1>
         <p className="mt-3 text-sm text-ink-muted">{session.message}</p>
         <Link
@@ -81,16 +82,13 @@ export default async function AdminLayout({
         client list scrolls. `w-[16.5rem]` matches the grid track exactly, so the
         content column does not shift when the rail is in view.
       */}
-      <aside className="hidden bg-ink lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-[16.5rem] lg:flex-col">
-        <div className="flex items-center gap-2.5 px-5 pt-6 pb-5">
-          <Seal className="size-9 text-wax" />
-          <span>
-            <span className="font-display block text-lg leading-none text-paper">
-              WABOGADOS
-            </span>
-            <span className="mt-1 block text-[0.5625rem] font-semibold uppercase tracking-[0.24em] text-paper/45">
-              Administración
-            </span>
+      <aside className="hidden border-r border-rule bg-shell lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-[16.5rem] lg:flex-col">
+        <div className="px-5 pt-5 pb-4">
+          <Link href="/" aria-label="WABOGADOS, web pública">
+            <BrandLogo size="sidebar" priority />
+          </Link>
+          <span className="mt-3 block text-[10px] font-semibold uppercase tracking-[0.24em] text-ink-muted">
+            Administración
           </span>
         </div>
 
@@ -102,7 +100,7 @@ export default async function AdminLayout({
           <div className="flex items-center gap-2.5">
             <span
               aria-hidden="true"
-              className="grid size-8 shrink-0 place-items-center rounded-full bg-wax text-[0.6875rem] font-bold text-paper"
+              className="grid size-8 shrink-0 place-items-center rounded-full bg-action text-[0.6875rem] font-bold text-on-action"
             >
               {initialsOf(profile.name)}
             </span>
@@ -110,14 +108,14 @@ export default async function AdminLayout({
               <span className="block truncate text-sm font-medium text-paper">
                 {profile.name}
               </span>
-              <span className="block truncate text-[0.6875rem] text-paper/50">
+              <span className="block truncate text-[0.6875rem] text-ink-muted">
                 {profile.roleLabel}
               </span>
             </span>
           </div>
 
-          <div className="mt-3 flex gap-3 text-[0.6875rem] text-paper/55">
-            <Link href="/portal" className="transition-colors hover:text-paper">
+          <div className="mt-3 flex gap-3 text-[0.6875rem] text-ink-muted">
+            <Link href="/admin" className="transition-colors hover:text-paper">
               Mi panel
             </Link>
             <Link href="/" className="transition-colors hover:text-paper">

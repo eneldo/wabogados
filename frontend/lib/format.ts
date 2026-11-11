@@ -642,3 +642,59 @@ export function paymentMethodLabel(method: string): string {
   }
 }
 
+
+export function actionTypeLabel(value: string): string {
+  const labels: Record<string, string> = {
+    reunion: "Reunión",
+    llamada: "Llamada",
+    visita: "Visita",
+    notificacion: "Notificación",
+    presentacion: "Presentación",
+    diligencia: "Diligencia",
+    consulta: "Consulta",
+    seguimiento: "Seguimiento",
+    otro: "Otro",
+  };
+  return labels[value] ?? humanise(value);
+}
+
+export function clientRequestTypeLabel(value: string): string {
+  const labels: Record<string, string> = {
+    documento: "Documento",
+    informacion: "Información",
+    tarea: "Tarea",
+  };
+  return labels[value] ?? humanise(value);
+}
+
+export function clientRequestStatusLabel(value: string): string {
+  const labels: Record<string, string> = {
+    pendiente: "Pendiente",
+    respondida: "Respondida",
+    revisada: "Revisada",
+    cancelada: "Cancelada",
+  };
+  return labels[value] ?? humanise(value);
+}
+
+export function clientRequestStatusTone(value: string): Tone {
+  if (value === "revisada") return "forest";
+  if (value === "respondida") return "brass";
+  if (value === "cancelada") return "ink";
+  return "wax";
+}
+
+export function milestoneStatusLabel(value: string): string {
+  const labels: Record<string, string> = {
+    pendiente: "Pendiente",
+    en_curso: "En curso",
+    completado: "Completado",
+  };
+  return labels[value] ?? humanise(value);
+}
+
+export function milestoneStatusTone(value: string): Tone {
+  if (value === "completado") return "forest";
+  if (value === "en_curso") return "brass";
+  return "neutral";
+}

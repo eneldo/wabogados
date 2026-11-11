@@ -48,7 +48,7 @@ export function ConsultationDetail({
         type="button"
         aria-label="Cerrar la solicitud"
         onClick={() => router.push(closeHref)}
-        className="absolute inset-0 bg-ink/45"
+        className="absolute inset-0 bg-overlay/70"
       />
       <div
         ref={panelRef}

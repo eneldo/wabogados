@@ -25,11 +25,10 @@ export function PageHeader({
     <div className="flex flex-wrap items-start justify-between gap-6 border-b border-rule-strong pb-7">
       <div className="min-w-0">
         {/*
-          A short brass rule above the eyebrow. It is the only ornament on the
-          screen, and it earns its place because it is the same brass as the
-          stamp: the header says "this is a file", not "this is a page".
+          The same red brand marker as the public site. Amber is reserved for
+          warnings rather than used as an unrelated decorative palette.
         */}
-        <span aria-hidden="true" className="mb-3 block h-px w-9 bg-brass" />
+        <span aria-hidden="true" className="mb-3 block h-0.5 w-9 bg-brand-red" />
         <Label>{eyebrow}</Label>
         <h1 className="font-display mt-2 text-[2.35rem] leading-[1.05] tracking-[-0.02em] text-ink">
           {title}

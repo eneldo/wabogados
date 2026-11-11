@@ -422,22 +422,98 @@ def provider_configured() -> dict[str, Any]:
     from app.core.config import get_settings
 
     settings = get_settings()
+    provider = settings.ai_provider
+    has_key = bool(settings.ai_api_key)
+    available = bool(provider and has_key)
+    missing = []
+    if not provider:
+        missing.append("Proveedor de lenguaje configurado (AI_PROVIDER)")
+    if not has_key:
+        missing.append("Clave de API en el entorno (AI_API_KEY)")
+    if not settings.ai_model:
+        missing.append("Modelo configurado (AI_MODEL)")
     return {
-        "provider": None,
-        "model": None,
+        "provider": provider,
+        "model": settings.ai_model if available else None,
         "embeddings": False,
         "vector_store": False,
         "queue": False,
-        "available": False,
-        # Named so the screen can list what is missing instead of shrugging.
-        "missing": [
-            "Proveedor de lenguaje configurado",
-            "Clave de API en el entorno",
-            "Índice de vectores para la búsqueda semántica",
-            "Cola de trabajos para las tareas largas",
-        ],
+        "available": available,
+        "missing": missing,
         "app_name": settings.app_name,
     }
+
+
+#: What both providers get as the system role: the draft is raw material and the
+#: lawyer is the one who signs, so the prompt states it instead of hoping.
+LEGAL_ASSISTANT_SYSTEM_PROMPT = (
+    "Eres un asistente jurídico. Redacta borradores claros y precisos. "
+    "El texto debe ser revisado por un abogado."
+)
+
+
+def _user_message(prompt: str, context: str) -> str:
+    return f"Contexto:\n{context}\n\nSolicitud:\n{prompt}"
+
+
+async def generate_draft(prompt: str, context: str = "") -> str:
+    """Genera un borrador con el proveedor configurado. Sin proveedor, error."""
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    if not settings.ai_provider or not settings.ai_api_key:
+        raise RuntimeError("Proveedor de IA no configurado")
+
+    if settings.ai_provider == "openai":
+        import httpx
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {settings.ai_api_key}"},
+                json={
+                    "model": settings.ai_model,
+                    "max_tokens": settings.ai_max_tokens,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": LEGAL_ASSISTANT_SYSTEM_PROMPT,
+                        },
+                        {
+                            "role": "user",
+                            "content": _user_message(prompt, context),
+                        },
+                    ],
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            return str(data["choices"][0]["message"]["content"])
+
+    if settings.ai_provider == "anthropic":
+        import httpx
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": settings.ai_api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                json={
+                    "model": settings.ai_model,
+                    "max_tokens": settings.ai_max_tokens,
+                    "messages": [
+                        {"role": "user", "content": _user_message(prompt, context)}
+                    ],
+                    "system": LEGAL_ASSISTANT_SYSTEM_PROMPT,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            return str(data["content"][0]["text"])
+
+    raise RuntimeError(f"Proveedor no soportado: {settings.ai_provider}")
 
 
 __all__ = [
@@ -448,6 +524,7 @@ __all__ = [
     "SearchHit",
     "Summary",
     "extractive_summary",
+    "generate_draft",
     "meaningful_terms",
     "provider_configured",
     "split_sentences",

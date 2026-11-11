@@ -99,10 +99,10 @@ export function DocumentDetailDrawer({
         type="button"
         aria-label="Cerrar"
         onClick={onClose}
-        className="absolute inset-0 bg-ink/35 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-overlay/70 backdrop-blur-[2px]"
       />
 
-      <aside className="rise relative flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-rule-strong bg-paper shadow-[-20px_0_60px_-30px_rgba(25,27,24,0.6)]">
+      <aside className="rise relative flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-rule-strong bg-canvas shadow-[-20px_0_60px_-30px_rgba(25,27,24,0.6)]">
         <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-rule bg-surface px-6 py-5">
           <div className="min-w-0">
             <Label>{detail ? detail.case_number : "Cargando"}</Label>

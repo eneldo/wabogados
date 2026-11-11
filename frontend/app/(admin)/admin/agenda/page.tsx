@@ -151,7 +151,7 @@ export default async function AgendaPage({
               key={item}
               href={queryFor({ view: item })}
               aria-current={view === item ? "page" : undefined}
-              className={`rounded-sm px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition-colors ${view === item ? "bg-ink text-paper" : "text-ink-muted hover:bg-surface-sunk hover:text-ink"}`}
+              className={`rounded-sm px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition-colors ${view === item ? "bg-action text-on-action" : "text-ink-muted hover:bg-surface-sunk hover:text-ink"}`}
             >
               {item === "day" ? "Día" : item === "week" ? "Semana" : "Mes"}
             </Link>

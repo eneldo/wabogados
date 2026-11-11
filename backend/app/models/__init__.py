@@ -1158,6 +1158,28 @@ class SystemSetting(TimestampMixin, Base):
         return f"<SystemSetting(key={self.key!r})>"
 
 
+class LegalAnalysis(TimestampMixin, SoftDeleteMixin, Base):
+    """Artículo de análisis jurídico publicado por el despacho (Thought Leadership)."""
+
+    __tablename__ = "legal_analyses"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    author_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_published: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, index=True
+    )
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<LegalAnalysis(slug={self.slug!r}, published={self.is_published})>"
+
+
 class MediaItem(TimestampMixin, SoftDeleteMixin, Base):
     """One asset of the firm's multimedia library (MASTER_PROMPT V4).
 
@@ -1705,3 +1727,106 @@ class ConsultationRequest(TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return f"<ConsultationRequest(area={self.area}, status={self.status})>"
+
+
+class ClientRequest(TimestampMixin, SoftDeleteMixin, Base):
+    """A request or task the firm asks a client to complete for a case.
+
+    Examples: upload/bring a document, confirm information, or complete an action
+    by a due date. The client portal can show and respond to requests that belong
+    to their own cases; staff manage requests within case scope.
+    """
+
+    __tablename__ = "client_requests"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    case_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    client_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("clients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    request_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), default="pendiente", nullable=False, index=True
+    )
+    priority: Mapped[str] = mapped_column(String(20), default="normal", nullable=False)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    requested_by: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    response_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    responded_by: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    case: Mapped["Case"] = relationship("Case", lazy="selectin")
+    client: Mapped["Client"] = relationship("Client", lazy="selectin")
+    requester: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[requested_by], lazy="selectin"
+    )
+    responder: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[responded_by], lazy="selectin"
+    )
+
+    __table_args__ = (
+        Index("ix_client_requests_case_status", "case_id", "status"),
+        Index("ix_client_requests_client_status", "client_id", "status"),
+        Index("ix_client_requests_due_at", "due_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ClientRequest(case_id={self.case_id}, status={self.status})>"
+
+
+class CaseMilestone(TimestampMixin, SoftDeleteMixin, Base):
+    """A case stage/milestone with controlled publication for the client portal."""
+
+    __tablename__ = "case_milestones"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    case_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stage_key: Mapped[str] = mapped_column(String(50), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="pendiente", nullable=False, index=True)
+    planned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    published_by: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_by: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    case: Mapped["Case"] = relationship("Case", lazy="selectin")
+
+    __table_args__ = (
+        Index("ix_case_milestones_case_published", "case_id", "is_published"),
+        Index("ix_case_milestones_case_order", "case_id", "sort_order"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<CaseMilestone(case_id={self.case_id}, stage={self.stage_key})>"

@@ -1,84 +1,82 @@
 @import "tailwindcss";
 
 /*
-  WABOGADOS — "instrumento legal".
-
-  The visual language is a court file, not a SaaS dashboard: warm paper, ink,
-  the oxblood of a wax seal and the brass of a notary stamp. Two audiences use
-  it, and the same restraint serves both. A client checking their case should
-  feel they are reading a document their lawyer prepared. Staff handling
-  evidence should feel they are operating an instrument that measures.
+  WABOGADOS — one corporate identity for the public site and every workspace.
+  Navy/slate establish structure; red identifies primary actions. Success and
+  warning retain their own semantic colors, always accompanied by labels.
 */
 
 @theme {
-  /* Paper and ink */
-  --color-paper: #f2eee4;
-  --color-paper-deep: #e8e2d4;
-  --color-surface: #fffdf8;
-  --color-surface-sunk: #faf7f0;
-  --color-ink: #191b18;
-  --color-ink-soft: #3d4039;
-  --color-ink-muted: #6f6d62;
-  --color-ink-faint: #9a978a;
+  /* Canonical brand tokens: logo_Wabogados.jpg and wabogado-2.jpg. */
+  --color-canvas: #252b39;
+  --color-shell: #1e2431;
+  --color-shell-hover: #3a4253;
+  --color-overlay: #0d111b;
+  --color-brand-red: #ed1c24;
+  --color-brand-text: #f5f6f8;
+  --color-action: #c91620;
+  --color-action-hover: #ac111b;
+  --color-on-action: #ffffff;
 
-  /* Wax seal: authority, destructive action, the accent */
-  --color-wax: #8c2f26;
-  --color-wax-deep: #6d2019;
-  --color-wax-tint: #f6e9e6;
+  /* Compatibility names describe text/surfaces, never inverse backgrounds. */
+  --color-paper: #f5f6f8;
+  --color-paper-deep: #29303e;
+  --color-surface: #303440;
+  --color-surface-sunk: #29303e;
+  --color-ink: #f5f6f8;
+  --color-ink-soft: #e0e4ec;
+  --color-ink-muted: #c4c9d3;
+  --color-ink-faint: #a5adbc;
+
+  /* Red foregrounds/feedback; action fills have separate contrast tokens. */
+  --color-wax: #ff7077;
+  --color-wax-deep: #ffadb2;
+  --color-wax-tint: #472b37;
+  --color-danger-strong: #b31c2b;
 
   /* Forest: integrity, verification, anything proven */
-  --color-forest: #2c5545;
-  --color-forest-tint: #e6efe9;
+  --color-forest: #79ddb0;
+  --color-forest-tint: #193d34;
 
   /* Brass: caution, quarantine, in-between states */
-  --color-brass: #8f6a1c;
-  --color-brass-tint: #f7f0dd;
+  --color-brass: #efcb7f;
+  --color-brass-tint: #403725;
 
   /* Rules: the ledger lines */
-  --color-rule: #ded7c6;
-  --color-rule-strong: #c4bba4;
+  --color-rule: #484f5e;
+  --color-rule-strong: #717a8e;
 
-  /* --- Corporate palette, from WABOGADOS_web.html ------------------- */
-
-  /*
-    The public site has its own scale, taken verbatim from the reference HTML:
-    petrol blue, gold and ivory. It is kept apart from the scale above on
-    purpose. The authenticated surface is a document a lawyer works inside —
-    paper, ink, wax — and the public site is a statement the firm makes to
-    someone who has not chosen to trust it yet. They are two voices of the same
-    firm, and flattening them would lose both.
-  */
-  --color-petrol: #132c35;
-  --color-petrol-deep: #10262e;
-  --color-petrol-soft: #20363c;
-  --color-petrol-mid: #314b52;
-  --color-gold: #b28b55;
-  --color-gold-bright: #d4b17a;
-  --color-gold-deep: #a98b5e;
-  --color-ivory: #f7f5f0;
-  --color-ivory-warm: #f2efe7;
-  --color-ivory-line: #ddd9cf;
-  --color-slate: #66767a;
-  --color-stone-line: #a9b0ae;
+  /* Public-site aliases share exactly the same brand and contrast scale. */
+  --color-institutional-dark: var(--color-canvas);
+  --color-institutional-mid: var(--color-surface);
+  --color-institutional: var(--color-brand-red);
+  --color-institutional-light: var(--color-brand-text);
+  --color-petrol: var(--color-shell);
+  --color-petrol-deep: var(--color-canvas);
+  --color-petrol-soft: var(--color-brand-text);
+  --color-petrol-mid: var(--color-surface);
+  --color-gold: var(--color-wax);
+  --color-gold-bright: #ff858b;
+  --color-gold-deep: #ff858b;
+  --color-ivory: var(--color-brand-text);
+  --color-ivory-warm: var(--color-surface);
+  --color-ivory-line: var(--color-rule);
+  --color-slate: var(--color-ink-muted);
+  --color-stone-line: var(--color-rule-strong);
 
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --font-sans: var(--font-plex-sans), Arial, Helvetica, sans-serif;
   --font-mono: var(--font-plex-mono), monospace;
 
-  --radius-card: 2px;
+  --radius-card: 4px;
 
-  /*
-    Paper does not sit on a table, it sits on a desk. Two shadows, both warm and
-    both faint: one for a panel lying on the surface, one for a row being reached
-    for. A third, cooler grey shadow is what makes a card look like a screenshot
-    pasted onto the page.
-  */
+  /* Subtle dark elevation shared by cards, menus and dialogs. */
   --shadow-card:
-    0 1px 2px color-mix(in oklab, var(--color-ink) 5%, transparent),
-    0 6px 18px -10px color-mix(in oklab, var(--color-ink) 14%, transparent);
+    0 1px 2px #00000014,
+    0 6px 18px -10px #00000055;
   --shadow-lift:
-    0 2px 4px color-mix(in oklab, var(--color-ink) 6%, transparent),
-    0 14px 32px -14px color-mix(in oklab, var(--color-ink) 22%, transparent);
+    0 2px 4px #00000024,
+    0 14px 32px -14px #00000077;
 }
 
 * {
@@ -91,26 +89,23 @@ html {
 
 body {
   margin: 0;
-  background-color: var(--color-paper);
+  background-color: var(--color-canvas);
+  background-image: radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--color-brand-red) 6%, transparent) 0%, transparent 50%),
+                    radial-gradient(ellipse at 80% 100%, color-mix(in srgb, var(--color-gold) 5%, transparent) 0%, transparent 50%);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-feature-settings: "cv05" 1, "ss01" 1;
   -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
 }
 
-/*
-  Paper grain. A single inline SVG turbulence, no network request. It sits
-  behind everything at low opacity so large areas of paper do not read as flat
-  digital fill.
-*/
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)' opacity='0.05'/%3E%3C/svg%3E");
+.rounded-card {
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.rounded-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
 }
 
 body > * {
@@ -133,6 +128,47 @@ body > .viewport-overlay {
 }
 
 /* --- Typography ------------------------------------------------------- */
+
+.brand-logo {
+  --logo-width: 164px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: #fff;
+  line-height: 1;
+}
+.brand-logo[data-size="sidebar"] { --logo-width: 140px; }
+.brand-logo[data-size="compact"] { --logo-width: 104px; }
+.brand-logo[data-size="login"] { --logo-width: 196px; }
+.brand-logo[data-size="footer"] { --logo-width: 180px; }
+.brand-logo__image {
+  display: block;
+  width: var(--logo-width);
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.workspace-container {
+  width: 100%;
+  max-width: 1800px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 3.4vw, 64px);
+}
+.workspace-container .grid > * {
+  min-width: 0;
+}
+.workspace-container :is(h1, h2, h3, p, dd) {
+  overflow-wrap: anywhere;
+}
+dialog {
+  color: var(--color-ink);
+  color-scheme: dark;
+}
+dialog::backdrop {
+  background: color-mix(in srgb, var(--color-overlay) 70%, transparent);
+}
 
 .font-display {
   font-family: var(--font-display);

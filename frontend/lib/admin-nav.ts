@@ -108,6 +108,14 @@ export const ADMIN_MODULES: AdminModule[] = [
     permission: "messages:read",
   },
   {
+    slug: "notificaciones",
+    label: "Notificaciones",
+    href: "/admin/notificaciones",
+    icon: "messages",
+    state: "ready",
+    permission: "notifications:read",
+  },
+  {
     slug: "solicitudes",
     label: "Solicitudes",
     href: "/admin/solicitudes",
@@ -124,6 +132,14 @@ export const ADMIN_MODULES: AdminModule[] = [
     // Gated, unlike expedientes: the browser reads across cases, so it needs
     // the document read permission rather than the case scope alone.
     permission: "documents:read",
+  },
+  {
+    slug: "analisis",
+    label: "Análisis jurídicos",
+    href: "/admin/analisis",
+    icon: "documents",
+    state: "ready",
+    permission: "analyses:read",
   },
   {
     slug: "multimedia",

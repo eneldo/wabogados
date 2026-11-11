@@ -91,14 +91,21 @@ def test_an_empty_text_summarises_to_nothing_rather_than_inventing() -> None:
 
 
 def test_the_provider_is_declared_absent_rather_than_assumed() -> None:
-    """No key, no model, no vector store. The module says so out loud."""
+    """No key, no provider. The module says so out loud.
+
+    The model name has a default (`gpt-4o-mini`), so it is not counted as
+    missing: what the screen owes the operator is the two variables that truly
+    have no value, not a padded list.
+    """
     status = provider_configured()
 
     assert status["available"] is False
     assert status["provider"] is None
     assert status["embeddings"] is False
     assert status["vector_store"] is False
-    assert len(status["missing"]) == 4
+    assert len(status["missing"]) == 2
+    assert any("AI_PROVIDER" in entry for entry in status["missing"])
+    assert any("AI_API_KEY" in entry for entry in status["missing"])
 
 
 @pytest.mark.asyncio
@@ -110,7 +117,8 @@ async def test_the_screen_can_ask_what_is_missing(
     assert response.status_code == 200
     payload = response.json()
     assert payload["available"] is False
-    assert "Proveedor de lenguaje configurado" in payload["missing"]
+    assert any("AI_PROVIDER" in entry for entry in payload["missing"])
+    assert any("AI_API_KEY" in entry for entry in payload["missing"])
 
 
 # --- search ---------------------------------------------------------------
@@ -368,3 +376,91 @@ async def test_the_summary_of_an_unknown_document_is_a_404(
     )
 
     assert response.status_code == 404
+
+
+# --- generation ------------------------------------------------------------
+
+
+class _NoProvider:
+    """Settings shape with nothing configured, so the contract is env-proof."""
+
+    ai_provider = None
+    ai_api_key = None
+    ai_model = None
+    ai_max_tokens = 800
+
+
+@pytest.mark.asyncio
+async def test_generation_without_a_provider_is_a_503(
+    client: AsyncClient, admin_token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No provider, no draft: the endpoint refuses instead of answering fiction."""
+    monkeypatch.setattr("app.core.config.get_settings", lambda: _NoProvider())
+
+    response = await client.post(
+        f"{AI}/generate",
+        json={"prompt": "Redacta el hecho 1 de una contestación"},
+        headers=_auth(admin_token),
+    )
+
+    assert response.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_generation_returns_the_draft_and_marks_it_for_review(
+    client: AsyncClient, admin_token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_draft(prompt: str, context: str = "") -> str:
+        assert prompt
+        return "BORRADOR REVISABLE"
+
+    monkeypatch.setattr("app.api.v1.legal_ai.generate_draft", fake_draft)
+
+    response = await client.post(
+        f"{AI}/generate",
+        json={"prompt": "Redacta el hecho 1", "context": "Hechos del expediente"},
+        headers=_auth(admin_token),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["draft"] == "BORRADOR REVISABLE"
+    # The contract of the route: a draft is raw material for a lawyer, and the
+    # response says so in the same breath it carries the text.
+    assert payload["requires_review"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_provider_failure_never_echoes_the_provider_message(
+    client: AsyncClient, admin_token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def broken_draft(prompt: str, context: str = "") -> str:
+        # A plain exception, not a RuntimeError: the route maps RuntimeError to
+        # 503 (nothing configured) and any other failure to 502 (provider broke).
+        raise ValueError("HTTP 429 quota exceeded for key sk-abc-secret")
+
+    monkeypatch.setattr("app.api.v1.legal_ai.generate_draft", broken_draft)
+
+    response = await client.post(
+        f"{AI}/generate",
+        json={"prompt": "Redacta el hecho 1"},
+        headers=_auth(admin_token),
+    )
+
+    assert response.status_code == 502
+    assert "sk-abc-secret" not in response.text
+    # The uniform error envelope keeps a human message, never the provider's.
+    assert "proveedor" in response.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_generation_is_refused_without_the_ai_permission(
+    client: AsyncClient, portal_token: str
+) -> None:
+    response = await client.post(
+        f"{AI}/generate",
+        json={"prompt": "Redacta el hecho 1"},
+        headers=_auth(portal_token),
+    )
+
+    assert response.status_code == 403

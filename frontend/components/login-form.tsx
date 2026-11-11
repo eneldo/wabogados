@@ -12,13 +12,16 @@ import { useState } from "react";
  */
 export function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Read the submitted DOM, not React's last change event. Autofill and fast
+    // entry during navigation can populate fields before those events arrive.
+    const fields = new FormData(event.currentTarget);
+    const email = String(fields.get("email") ?? "").trim();
+    const password = String(fields.get("password") ?? "");
     setError(null);
     setBusy(true);
 
@@ -61,8 +64,6 @@ export function LoginForm() {
           type="email"
           autoComplete="username"
           required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
           className="mt-1.5 w-full rounded-card border border-rule-strong bg-surface px-3.5 py-2.5 text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-wax"
           placeholder="nombre@despacho.example"
         />
@@ -78,8 +79,6 @@ export function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
           className="mt-1.5 w-full rounded-card border border-rule-strong bg-surface px-3.5 py-2.5 text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-wax"
         />
       </div>
@@ -96,7 +95,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded-card bg-ink px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-card bg-action px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-on-action transition-colors hover:bg-action-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
         {busy ? "Comprobando…" : "Entrar"}
       </button>
