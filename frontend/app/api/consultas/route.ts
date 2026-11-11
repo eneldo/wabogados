@@ -23,18 +23,8 @@
 import { NextResponse } from "next/server";
 
 import { apiBaseUrl } from "@/lib/api";
-
-/** The seven areas the firm publishes, plus the escape hatch it offers. */
-const AREAS = new Set([
-  "Derecho penal",
-  "Ley familiar",
-  "Derecho laboral",
-  "Derecho constitucional",
-  "Derecho civil",
-  "Derecho comercial",
-  "Asesorías empresariales",
-  "Otra consulta",
-]);
+import { CONSULTATION_AREAS, consultationSubject } from "@/lib/consultation-areas";
+import { getPublicServices } from "@/lib/public-services.server";
 
 /** Per-IP budget for this route, mirroring the API's own. */
 const WINDOW_MS = 60 * 60 * 1000;
@@ -90,6 +80,40 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const body = (raw ?? {}) as Record<string, unknown>;
+  const selectedArea = typeof body.area === "string" ? body.area : "";
+  if (!CONSULTATION_AREAS.includes(selectedArea)) {
+    const { services, available } = await getPublicServices();
+    if (!available) {
+      return NextResponse.json(
+        { error: { code: "catalogue_unavailable", message: "No pudimos verificar el área. Inténtelo de nuevo más tarde." } },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if (!services.some((service) => service.title === selectedArea)) {
+      return NextResponse.json(
+        { error: { code: "invalid_area", message: "Seleccione un área publicada por el despacho." } },
+        { status: 422, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  }
+
+  // The deployed backend accepts the original seven labels. Route other live
+  // areas through its "Otra consulta" option and preserve their exact name in
+  // the message; never drop or silently replace the service the visitor chose.
+  const message = text(body.message, 1501).replace(/\s+/g, " ");
+  if (message.length < 10 || message.length > 1500) {
+    return NextResponse.json(
+      { error: { code: "invalid_message", message: "Describa su consulta en entre 10 y 1500 caracteres." } },
+      { status: 422, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  const subject = consultationSubject(selectedArea, message);
+  if (subject.message.length > 1500) {
+    return NextResponse.json(
+      { error: { code: "message_too_long", message: "Acorte la consulta para incluir el nombre del área dentro del límite de 1500 caracteres." } },
+      { status: 422, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   // The trap is forwarded untouched. A person's browser leaves it empty, so
   // filling it in is the API's signal to refuse without storing anything.
@@ -97,8 +121,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     full_name: text(body.fullName, 255),
     phone: text(body.phone, 50),
     email: text(body.email, 320),
-    area: typeof body.area === "string" && AREAS.has(body.area) ? body.area : "",
-    message: text(body.message, 1500),
+    area: subject.area,
+    message: subject.message,
     consent: body.consent === true,
     website: text(body.website, 200),
   };
@@ -108,7 +132,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(payload),
     cache: "no-store",
-  });
+  }).catch(() => null);
+
+  if (!upstream) {
+    return NextResponse.json(
+      { error: { code: "service_unavailable", message: "No pudimos comunicarnos con el despacho. Inténtelo de nuevo más tarde." } },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   const text_ = await upstream.text();
 

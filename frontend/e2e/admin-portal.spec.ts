@@ -5,6 +5,7 @@ import { setTimeout as pace } from "node:timers/promises";
 import { expect, test } from "@playwright/test";
 
 import { isClientOnly, landingFor } from "../lib/landing";
+import { ADMIN_MODULES } from "../lib/admin-nav";
 import { expectCorporateBrand, expectSemanticContrast } from "./brand-assertions";
 
 const modules = [
@@ -21,6 +22,7 @@ const modules = [
   ["/admin/facturacion", "Facturación"],
   ["/admin/seguridad", "Usuarios"],
   ["/admin/configuracion", "Configuración"],
+  ["/admin/estadisticas-web", "Estadísticas web"],
 ] as const;
 
 test("landing and client classification agree, including mixed roles", () => {
@@ -97,7 +99,7 @@ test("public entry, existing session, all admin modules, mobile and server logou
       access: signedInCookies.find((cookie) => cookie.name === "wb_access")!.value,
       refresh: signedInCookies.find((cookie) => cookie.name === "wb_refresh")!.value,
     };
-    await expect(page.locator("aside nav a")).toHaveCount(13);
+    await expect(page.locator("aside nav a")).toHaveCount(ADMIN_MODULES.filter((module) => module.state === "ready").length);
     await expect(page.locator("aside").getByRole("link", { name: "Mi panel", exact: true })).toHaveAttribute("href", "/admin");
     await expectCorporateBrand(page);
     await expectSemanticContrast(page);

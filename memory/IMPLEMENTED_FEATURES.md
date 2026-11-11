@@ -1,5 +1,25 @@
 # IMPLEMENTED FEATURES
 
+## Entregas locales verificadas — 2026-11-11
+
+- Nueva portada editorial responsive con marca y datos del despacho conservados.
+- Doce servicios del catálogo con páginas propias, consulta preseleccionada,
+  navegación de regreso y adaptación al contrato de consultas desplegado.
+- Iconos SVG semánticos por nombre: laboral/maletín, penal/escudo, familia/personas,
+  inmobiliario/casa y otros según el área; estables al reordenar el catálogo.
+- Analítica first-party sin cookies ni fingerprint, sin datos personales del
+  formulario en los contadores; DNT/GPC, rutas públicas restringidas, deduplicación
+  e idempotencia y retención automática.
+- Panel privado `/admin/estadisticas-web`, permiso `website_analytics:read`,
+  vistas/visitantes estimados/clics/solicitudes, filtros y evolución diaria/mensual.
+- Migración `fd4e5f607182` y despliegue local selectivo sin incluir pendientes de
+  multimedia/IA. **881 tests backend (85,77 %) en esa release**, **25 tests de
+  navegador** en revisión aislada; compilación y TypeScript correctos.
+
+Detalle y límites: `CURRENT_STATE.md`, `session_summary.md` y
+`../docs/ESTADISTICAS_WEB.md`. Las cifras de pruebas por fase que siguen son
+históricas y no sustituyen la validación vigente de la release.
+
 - Foundation (Fase 0A):
   - FastAPI application structure with API v1 prefix
   - Configuration via Pydantic Settings (.env)

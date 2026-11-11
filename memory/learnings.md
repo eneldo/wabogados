@@ -898,3 +898,18 @@
   ese veredicto no cubre el trabajo sin commit posterior. Antes de declarar
   una tarea terminada sin venv local, exigir el paso por `docker compose -f
   compose.yaml -f compose.test.yaml` y commit del ciclo.
+
+- **2026-11-11 — Pruebas visuales y catálogo público editable:**
+  **Contexto:** La regresión pública esperaba siete tarjetas de servicios, pero la API activa publica doce áreas; siete solo corresponde al contenido de respaldo sin API.
+  **Aprendizaje:** Una prueba de layout sobre datos reales no debe fijar el número de registros de un catálogo editable. Debe comprobar contenido no vacío, títulos únicos, navegación y ausencia de desbordamiento.
+  **Aplicación futura:** Reservar recuentos exactos para fixtures controlados y verificar la composición responsive independientemente del volumen de datos publicado.
+
+- **2026-11-11 — Precarga de tarjetas y límites compartidos de API:**
+  **Contexto:** Las tarjetas con `next/link` precargaban detalles que consultaban el catálogo público; al recorrer repetidamente la portada en Playwright se alcanzó el límite compartido de 100 peticiones por minuto y apareció el contenido de respaldo.
+  **Aprendizaje:** La precarga automática de muchas rutas dinámicas puede consumir el presupuesto de API aunque el usuario no navegue a ellas. Además, una prueba debe esperar la URL de destino antes de leer o rellenar la nueva página.
+  **Aplicación futura:** Desactivar la precarga en rejillas de detalles con acceso a API cuando no compense, reutilizar el catálogo por render y evitar recargar toda la portada en cada iteración de pruebas de navegación.
+
+- **2026-11-11 — Analítica, auditoría e identidad efímera:**
+  **Contexto:** Un contador sin campos personales igualmente habría duplicado IP/user agent en el middleware de auditoría y los escenarios E2E habrían inflado el contador real.
+  **Aprendizaje:** La minimización debe revisarse de extremo a extremo: payload cerrado, rutas publicadas, sin credenciales/metadatos reenviados, excepción exacta del intake en auditoría y pruebas de escritura en una base efímera separada. Un UUID solo en memoria estima navegaciones, no personas ni únicos mensuales.
+  **Aplicación futura:** Respetar DNT/GPC, documentar explícitamente estimación/retención, usar un presupuesto separado e idempotencia transaccional y excluir pruebas generales mediante DNT; nunca sembrar demostraciones en datos reales.

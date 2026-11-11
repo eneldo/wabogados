@@ -22,6 +22,7 @@ from app.api.v1.legal_ai import router as legal_ai_router
 from app.api.v1.media import router as media_router
 from app.api.v1.messages import router as messages_router
 from app.api.v1.public import router as public_router
+from app.api.v1.website_analytics import router as website_analytics_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(health_router)
@@ -46,3 +47,4 @@ router.include_router(media_router)
 router.include_router(billing_router)
 router.include_router(legal_ai_router)
 router.include_router(public_router)
+router.include_router(website_analytics_router)

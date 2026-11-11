@@ -1,5 +1,50 @@
 # CURRENT STATE
 
+## Estado vigente consolidado — 2026-11-11
+
+Esta sección y `session_summary.md` prevalecen sobre las notas históricas de abajo.
+
+- Aplicación local en ejecución: portada `http://localhost:3000`, acceso
+  `/login`, backend `http://localhost:8000/docs`; backend/frontend saludables al
+  cerrar. No se hizo un despliegue al dominio público de Internet.
+- Portada editorial renovada, móvil/escritorio, con identidad azul/gris/rojo,
+  logo y datos reales conservados. Cada una de las doce tarjetas abre su propia
+  página `/servicios/[slug]` con consulta preseleccionada. Iconos SVG asignados
+  por significado/nombre del servicio, no por posición.
+- El formulario usa las áreas vigentes. El proxy Next adapta el contrato antiguo
+  del backend sin perder el nombre elegido: conserva el área en el mensaje cuando
+  necesita usar «Otra consulta». No confirma sin HTTP 201.
+- Panel privado `/admin/estadisticas-web`, permiso `website_analytics:read`,
+  administrador por defecto: vistas, navegaciones estimadas, áreas, clics,
+  solicitudes aceptadas y series por día/mes. Sin cookies, fingerprint, IP ni
+  contenido de formularios en la analítica; DNT/GPC respetados. No son personas
+  exactas: recargas/pestañas nuevas pueden contar de nuevo. Datos desde activación.
+- Migración local: `fd4e5f607182`. Agregados 400 días; digests efímeros 48 horas
+  con limpieza horaria. `WEBSITE_ANALYTICS_ENABLED=true` en backend/frontend.
+- Validado: **881 pruebas backend, 85,77 %**, ruff/mypy y migración reversible,
+  sobre release aislada `0d91b47` + analítica; **25 pruebas Playwright** sobre una
+  instalación efímera separada, incluido el panel y el ingreso real de eventos.
+  Frontend build/TypeScript correctos; ESLint 0 errores y 1 warning previo en
+  `portal/casos/[caseId]/page.tsx:288`.
+- Los datos sintéticos permanecieron solo en revisión: contenedores/base efímera
+  eliminados al terminar, credencial temporal eliminada; no se importaron cifras
+  de demostración a la aplicación local.
+- Imagen activa: `wabogados_v1_master-backend:latest`, también etiquetada
+  `wabogados-website-analytics:local`. Imagen anterior conservada como
+  `wabogados-backend-before-website-analytics:local`.
+- Snapshot revisado: `.tmp/scoped-backend-psproyq6/backend`; manifest/hashes en
+  su directorio padre. Generador: `execution/prepare_scoped_backend.py`.
+- Respaldo PostgreSQL previo validado, 0600:
+  `.tmp/website-analytics-predeploy-20261111T233549Z.dump`.
+- **No reconstruir el backend del árbol completo todavía:** conserva cambios
+  anteriores de Dockerfile/multimedia/IA sin validar, excluidos del despliegue
+  selectivo. Los 881 tests no certifican esos pendientes. No borrar ni revertir
+  trabajo existente. Hay cambios modificados y nuevos sin commit/push.
+- Referencias: `docs/IDENTIDAD_WEB_PUBLICA.md`, `docs/ESTADISTICAS_WEB.md`,
+  `session_summary.md`, ADR-064 en `DECISIONS.md`, aprendizajes en `learnings.md`.
+
+## Notas históricas — no interpretar como el estado vigente
+
 ## Working
 - Backend FastAPI 0.116+ with Python 3.12
 - SQLAlchemy 2 async + asyncpg

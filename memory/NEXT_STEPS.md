@@ -1,5 +1,26 @@
 # NEXT STEPS
 
+## Prioridades vigentes — cierre 2026-11-11
+
+1. Esperar la próxima indicación del usuario: portada, páginas por área, iconos y
+   estadísticas privadas ya están implementados y activos localmente.
+2. Antes de un build completo de backend, revisar los cambios anteriores de
+   Dockerfile, streaming multimedia y confidencialidad IA que siguen sin validar.
+   La release de analítica los excluyó; sus 881 pruebas no validan ese árbol completo.
+   No descartarlos ni declararlos terminados basándose en los resúmenes antiguos.
+3. El usuario autorizó después el commit/push de la entrega verificada. Consultar
+   Git para su referencia y estado remoto; los cambios previos sin validar quedan
+   separados, sin descartarlos ni publicarlos por accidente.
+4. Decisiones operativas: S3 externo/cuenta/bucket/credencial/Object Lock y política
+   de confidencialidad del proveedor de IA; revisión del aviso legal por la firma.
+   No hay publicación al dominio de Internet autorizada ni realizada en esta sesión.
+5. Analítica: observar datos reales desde activación en `/admin/estadisticas-web`,
+   con cuenta administradora; interpretar visitantes como navegaciones estimadas.
+   No cargar datos sintéticos para «llenar» el panel. Guía: `docs/ESTADISTICAS_WEB.md`.
+
+Las secciones siguientes conservan hallazgos y planes anteriores; contrastarlos
+con `CURRENT_STATE.md` y `session_summary.md` antes de ejecutarlos.
+
 ## Hallazgos de la auditoría del 2026-10-05 — Fase 1 CERRADA el 2026-10-06
 
 **Los ocho primeros están cerrados.** La puerta quedó en **810 pruebas, 86,95 % de

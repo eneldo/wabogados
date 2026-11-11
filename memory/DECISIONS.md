@@ -761,6 +761,28 @@ Dos decisiones que parecen detalles y no lo son:
 respaldo corrupto y descubrirlo después deja una copia rota al otro lado que parece
 una copia de seguridad.
 
+## ADR-064 — Analítica first-party agregada sin identificación de visitantes
+
+**Fecha:** 2026-11-11. **Motivo:** autorización del usuario para medir visitas,
+interés por áreas y contactos de la web oficial en un panel privado.
+
+**Decisión:** conservar agregados diarios en PostgreSQL y deduplicar mediante
+digests temporales de UUID aleatorios que solo viven en memoria del navegador.
+No cookies, almacenamiento persistente de navegador, IP, fingerprint ni proveedor
+externo. Los únicos son estimaciones de navegaciones por día: pueden repetirse
+al recargar y no se deduplican mensualmente. Retención de digests 48 horas con
+purga horaria; agregados 400 días. Las consultas aceptadas incrementan un total
+anónimo en su propia transacción, sin copiar datos personales.
+
+**Acceso:** `website_analytics:read`, administrador por defecto, validado también
+en backend. Solo se miden portada, servicios y análisis públicos publicados.
+Do Not Track/GPC excluyen navegación. La única excepción de auditoría adicional
+es el intake exacto de eventos, para no registrar IP/user agent por visita.
+
+**Consecuencias:** conteo orientativo, no personas exactas ni sistema antifraude;
+sin histórico anterior a activar. La funcionalidad no debe bloquear la navegación
+si la telemetría no responde. Detalles y operación: `docs/ESTADISTICAS_WEB.md`.
+
 ## ADR-063 - Los ceilings de dependencias se fijan a lo verificado
 
 Los rangos abiertos (`ruff>=0.12,<1`, `sqlalchemy>=2.0.41,<3`) rompieron los

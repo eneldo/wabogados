@@ -95,6 +95,10 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         self.session_factory: SessionFactoryLike = session_factory or SessionFactory
 
     def _should_skip(self, request: Request) -> bool:
+        # Traffic counters must not duplicate visitors' IP/UA in the audit trail.
+        # Only this fixed anonymous intake is exempt; admin reads keep normal RBAC.
+        if request.url.path == "/api/v1/public/analytics/events":
+            return True
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
         if request.url.path.startswith(SKIPPED_PREFIXES):

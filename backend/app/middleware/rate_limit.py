@@ -34,6 +34,7 @@ LIMIT_PROFILES: dict[str, tuple[str, str]] = {
     "message": ("message_rate_limit_requests", "message_rate_limit_window_seconds"),
     "contact": ("contact_rate_limit_requests", "contact_rate_limit_window_seconds"),
     "default": ("rate_limit_requests", "rate_limit_window_seconds"),
+    "analytics": ("rate_limit_requests", "rate_limit_window_seconds"),
 }
 
 
@@ -108,6 +109,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def _profile_for(self, request: Request) -> str:
         path = request.url.path
+        if path == "/api/v1/public/analytics/events":
+            return "analytics"
         if path.startswith(AUTH_PATH_PREFIXES):
             return "auth"
         if path.startswith(MESSAGE_PATH_PREFIXES) and request.method == "POST":

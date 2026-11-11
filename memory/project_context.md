@@ -14,11 +14,15 @@ generación asistida sigue pendiente de proveedor).
   operaciones.
 - Frontend Next.js con web pública, portal del cliente, gestor de evidencias y
   administración modular.
-- Docker Compose levanta PostgreSQL, backend, worker de evidencias, MinIO,
-  destino de respaldo y frontend con healthchecks.
-- Tests Docker aislados por savepoint sobre PostgreSQL efímero: **810 pruebas,
-  86,95 %** de cobertura según la última sesión registrada (2026-10-06), sin avisos
-- Frontend: ESLint, TypeScript y build limpios. **Ruff y mypy estricto limpios**
+- Compose define PostgreSQL, Redis, backend, worker de evidencias, ClamAV y
+  frontend. MinIO y el destino provisional están comentados; el almacenamiento
+  local es el activo y el destino S3 externo sigue pendiente de la firma.
+- Tests Docker aislados por savepoint: **881 pruebas y 85,77 % de cobertura** en
+  la release de analítica (2026-11-11), Git `0d91b47` más cambios de esta función.
+  El árbol conserva cambios anteriores de multimedia/IA sin validar y excluidos
+  de la imagen desplegada; no extrapolar este resultado a esos pendientes.
+- Frontend: TypeScript/build correctos; ESLint sin errores, con un warning previo
+  en `portal/casos/[caseId]/page.tsx:288`. **Ruff y mypy estrictos limpios en la release aislada**
   y reproducibles: los ceilings de `ruff`, `mypy` y `sqlalchemy` están fijados en
   `pyproject.toml` a lo verificado, y el extra `dev` incluye los stubs de tipos
   que faltaban. Hash de contraseñas con `argon2-cffi`.
@@ -48,8 +52,20 @@ Evidencias: originales inmutables, derivados optimizados, SHA-256, cadena de cus
 - Identidad pública revisada el 2026-10-22: logo real servido desde
   `frontend/public/marca/`, tema azul noche/gris/rojo de `wabogado-2.jpg` limitado
   a `.public-site`, ancho fluido. Guía: `docs/IDENTIDAD_WEB_PUBLICA.md`;
-  11 regresiones públicas ejecutables sin credenciales (`--project=public`).
-- Administración en `/admin` (13 módulos), cliente en `/portal` y acceso compartido
+   19 regresiones públicas ejecutables sin credenciales (`--project=public`).
+- Portada renovada el 2026-11-11 con composición editorial, hero de dos columnas,
+  servicios numerados y estilos exclusivos `.public-home`. Frontend reconstruido
+  y activo en `http://localhost:3000`. Cada tarjeta enlaza a `/servicios/[slug]`,
+  con catálogo compartido y formulario preseleccionado; iconos SVG semánticos por
+  nombre del servicio y **19 regresiones públicas verificadas**. El adaptador de consultas preserva el nombre del área en el
+  mensaje al normalizarlo al contrato antiguo del backend desplegado.
+- Analítica pública first-party activa con panel privado `/admin/estadisticas-web`
+  y permiso administrador `website_analytics:read`. Vistas, navegaciones estimadas,
+  áreas, clics y consultas registradas, filtros y series diarias/mensuales. Sin
+  cookies, IP ni fingerprint; UUID solo en memoria, dedup 48 h y agregados 400 días.
+  **25 regresiones públicas/analítica verificadas en instalación aislada**.
+  Operación y límites de estimación: `docs/ESTADISTICAS_WEB.md` (ADR-064).
+- Administración en `/admin` (16 módulos disponibles, visibles según permisos), cliente en `/portal` y acceso compartido
   en `/login`. Destino administrativo y reentrada con sesión **corregidos y
   verificados el 2026-10-22**. Se usa el cliente interno y guarda comunes, sin
   consultar localhost desde Docker ni aceptar identidades vacías al fallar la API.
@@ -61,18 +77,18 @@ Evidencias: originales inmutables, derivados optimizados, SHA-256, cadena de cus
 
 ## Base de datos
 PostgreSQL 17 via Docker Compose.
-Esquema de identidad aplicado hasta `d4e5f6a7b8c9`.
+Esquema local aplicado hasta `fd4e5f607182` (analítica web, 2026-11-11).
 Convención: UUID PK, timestamps, soft delete (is_active, deleted_at).
 
 ## Infraestructura
-Docker Compose local con servicios: postgres, minio, minio-backup, backend,
-evidence-worker y frontend, con healthchecks donde aplica.
+Docker Compose local con servicios: postgres, redis, backend, evidence-worker,
+clamav y frontend. MinIO/minio-backup permanecen fuera del stack activo.
 Security: no-new-privileges, cap_drop ALL, non-root.
 
 ## Servicios externos
 MinIO/S3 (pendiente Fase 0B/7)
-Redis: contador compartido de rate limiting (cerrado 2026-10-05); cola de trabajos propia de evidencias (pendiente Fase 7)
-ClamAV (pendiente Fase 7)
+Redis: contador compartido de rate limiting. Cola de evidencias y worker existentes.
+ClamAV integrado en evidencias/documentos; biblioteca multimedia pendiente.
 
 ## Seguridad
 - Config sin secretos hardcodeados (.env.example)
@@ -87,7 +103,8 @@ ClamAV (pendiente Fase 7)
   (ventana deslizante con script Lua en `app/services/rate_limit_store.py`);
   si Redis cae, cuenta en memoria y registra el error. Detalle en KNOWN_ISSUES.md
 - MinIO no integrado en el flujo de producción (el mecanismo S3 sí está listo)
-- Sin antivirus para evidencias
+- La biblioteca multimedia todavía tiene pendientes de procesamiento/escaneo;
+  no confundirlo con el motor antivirus ya integrado en evidencias/documentos.
 - Respaldo externo en el mismo host: en producción debe ser otra máquina
 - Sin ensayo de restauración con la aplicación caída
 - Si el token de acceso ya expiró, cerrar sesión no puede revocar el refresco
@@ -100,10 +117,10 @@ ClamAV (pendiente Fase 7)
   directorio de tests en `.gitleaks.toml` (useDefault intacto).
 
 ## Funcionalidades terminadas
-Ver IMPLEMENTED_FEATURES.md
+Ver `memory/IMPLEMENTED_FEATURES.md` y estado vigente en `memory/CURRENT_STATE.md`.
 
 ## Decisiones registradas
-Ver DECISIONS.md (ADR-058 a ADR-063 son de la sesión 2026-10-04)
+Ver `memory/DECISIONS.md` (ADR-064: analítica first-party, 2026-11-11).
 
 ## Funcionalidades pendientes
-Ver NEXT_STEPS.md
+Ver `memory/NEXT_STEPS.md`.

@@ -12,6 +12,7 @@ import type { IconName } from "@/lib/admin-nav";
  * instrument does not decorate its labels.
  */
 const PATHS: Record<IconName, string> = {
+  analytics: "M4 3v18h17M8 17v-5m5 5V8m5 9V5",
   // Four panes, the universal "overview".
   dashboard: "M4 4h6v7H4zM14 4h6v4h-6zM14 12h6v8h-6zM4 15h6v5H4z",
 

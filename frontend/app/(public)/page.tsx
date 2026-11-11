@@ -5,12 +5,13 @@ import { ColumnsIllustration } from "@/components/public/columns-illustration";
 import { apiFetchOr } from "@/lib/api";
 import { landingFor } from "@/lib/landing";
 import { requireSession } from "@/lib/session-guard";
-import type { LegalAreaOption } from "@/lib/types";
+import { getPublicServices } from "@/lib/public-services.server";
 import { ContactForm } from "@/components/public/contact-form";
 import { NewsSection } from "@/components/public/news-section";
-import { Parallax } from "@/components/public/parallax";
 import { Reveal } from "@/components/public/reveal";
 import { SiteFooter, SiteHeader } from "@/components/public/site-header";
+import { ServiceIcon } from "@/components/public/service-icon";
+import { PublicAnalytics } from "@/components/public/public-analytics";
 
 /**
  * The public site.
@@ -37,52 +38,6 @@ import { SiteFooter, SiteHeader } from "@/components/public/site-header";
  * 4. The consultation form uses the real API; legal copy still awaits the
  *    firm's approval, so the pending notices are retained.
  */
-
-/*
-  The firm's own practice areas, with the wording it uses for them. Seven, not
-  the four the reference mock had: the reference is a layout reference, and
-  dropping three areas the firm actually practises would be trimming the firm's
-  offer to fit the design.
-*/
-const GLYPHS = ["⚖", "⌂", "▥", "▤", "◈", "◉", "❖", "§", "¶", "✦"];
-
-const SERVICES = [
-  {
-    glyph: "⚖",
-    title: "Derecho penal",
-    body: "Asesoría a altos ejecutivos para tomar mejores decisiones en casos penales.",
-  },
-  {
-    glyph: "⌂",
-    title: "Ley familiar",
-    body: "Derechos y deberes de los esposos y los hijos, filiación, sucesiones, divorcios, separaciones y alimentos.",
-  },
-  {
-    glyph: "▥",
-    title: "Derecho laboral",
-    body: "El equilibrio en las relaciones contractuales de tipo laboral y profesional.",
-  },
-  {
-    glyph: "▤",
-    title: "Derecho constitucional",
-    body: "Efectivizar el derecho constitucional para que cada persona pueda vivir con dignidad, por vía legal y jurisprudencial.",
-  },
-  {
-    glyph: "◈",
-    title: "Derecho civil",
-    body: "Las relaciones contractuales de las personas, por voluntad de las partes o por hechos meramente naturales.",
-  },
-  {
-    glyph: "◉",
-    title: "Derecho comercial",
-    body: "La rama del derecho privado que regula la realización de actos de comercio.",
-  },
-  {
-    glyph: "❖",
-    title: "Asesorías empresariales",
-    body: "Asistencia legal a empresas en materia comercial, laboral, societaria y de marcas.",
-  },
-];
 
 const PRINCIPLES = [
   { number: "01 / ESTRATEGIA", title: "Una ruta clara", body: "Objetivos y próximos pasos comprensibles desde el inicio." },
@@ -170,11 +125,7 @@ export default async function PublicHomePage({
   const params = (await searchParams) ?? {};
   const analysisPage = Math.max(1, Number(params.analisis ?? "1") || 1);
 
-  const areas = await apiFetchOr<LegalAreaOption[]>(
-    [],
-    "/api/v1/public/legal-areas",
-    { anonymous: true },
-  );
+  const { services } = await getPublicServices();
 
   const health = await apiFetchOr<{ status?: string; service?: string }>(
     { status: "unknown" },
@@ -215,30 +166,39 @@ export default async function PublicHomePage({
       : null;
 
   return (
-    <div className="public-site">
+    <div className="public-site public-home">
+      <PublicAnalytics path="/" enabled={process.env.WEBSITE_ANALYTICS_ENABLED !== "false"} />
       <SiteHeader />
 
       <main>
         {/* --- Hero ------------------------------------------------------ */}
-        <div id="inicio" className="wrap">
-          <div className="site-hero grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
-            <div>
+        <div id="inicio" className="wrap home-intro">
+          <div className="home-location">
+            <span>Bogotá D.C. · Colombia</span>
+            <a href={`tel:${CONTACT.phoneHref}`}>
+              Hablemos de su caso <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+          <div className="site-hero home-hero">
+            <div className="home-hero-copy">
               <Reveal delay={0}>
-                <p className="site-eyebrow">Derecho con visión de futuro</p>
+                <p className="site-eyebrow">El derecho, de su lado</p>
               </Reveal>
 
               <Reveal delay={80}>
                 <h1 className="site-display site-hero-title mt-7">
-                  Su tranquilidad.
+                  Su tranquilidad,
                   <br />
-                  Nuestra <em>mejor defensa.</em>
+                  nuestra razón
+                  <br />
+                  <em>para defender.</em>
                 </h1>
               </Reveal>
 
               <Reveal delay={160}>
                 <p className="site-body mt-7 max-w-[42ch]">
-                  Acompañamiento jurídico cercano, estrategias claras y tecnología
-                  para que usted siempre sepa cómo avanza su caso.
+                  Detrás de cada caso hay una historia. La escuchamos, trazamos
+                  una estrategia y le acompañamos en cada decisión.
                 </p>
               </Reveal>
 
@@ -253,38 +213,57 @@ export default async function PublicHomePage({
                       Solicitar consulta <span aria-hidden="true">↗</span>
                     </a>
                   )}
-                  <a href="#servicios" className="site-btn line justify-center">
-                    Nuestros servicios
+                  <a href="#servicios" className="home-text-link">
+                    Conozca nuestras áreas <span aria-hidden="true">↓</span>
                   </a>
                 </div>
               </Reveal>
 
               <Reveal delay={320}>
-                <p className="mt-10 text-[10px] leading-relaxed tracking-[0.24em] text-slate">
-                  ESTRATEGIA · COMPROMISO · CONFIDENCIALIDAD
-                </p>
+                <div className="home-hero-signature">
+                  <span className="home-signature-mark" aria-hidden="true">W.</span>
+                  <p>
+                    Rigor jurídico. Trato humano.<br />
+                    <span>Personas y empresas, siempre en el centro.</span>
+                  </p>
+                </div>
               </Reveal>
             </div>
 
-            <Reveal delay={200} className="lg:pl-4">
-              <Parallax>
-                <ColumnsIllustration />
-              </Parallax>
+            <Reveal delay={200} className="home-hero-visual">
+              <div className="home-art-heading">
+                <span>WABOGADOS</span>
+                <span>ESTRATEGIA & DEFENSA</span>
+              </div>
+              <ColumnsIllustration />
+              <div className="home-art-caption">
+                <span className="home-art-symbol" aria-hidden="true">↗</span>
+                <div>
+                    <p>
+                      Una perspectiva clara.<br />
+                      <strong>Un respaldo cercano.</strong>
+                    </p>
+                  <a href="#firma">Conozca la firma <span aria-hidden="true">→</span></a>
+                </div>
+              </div>
             </Reveal>
           </div>
         </div>
 
         {/* --- Trust band ------------------------------------------------ */}
-        <div className="site-band">
+        <div className="site-band home-trust">
           <div className="wrap">
-            <div className="grid gap-8 py-14 sm:grid-cols-3 sm:gap-6 sm:py-16">
+            <div className="home-trust-grid">
               {TRUST.map((item, index) => (
                 <Reveal key={item.title} delay={index * 90}>
                   <div className="trust-item">
-                    <strong className="site-display block text-lg sm:text-xl">
-                      {item.title}
-                    </strong>
-                    <span className="mt-2 block text-sm text-ivory/70">{item.body}</span>
+                    <span className="home-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                    <div>
+                      <strong className="site-display block text-lg sm:text-xl">
+                        {item.title}
+                      </strong>
+                      <span className="mt-2 block text-sm text-ivory/70">{item.body}</span>
+                    </div>
                   </div>
                 </Reveal>
               ))}
@@ -293,7 +272,7 @@ export default async function PublicHomePage({
         </div>
 
         {/* --- Practice areas -------------------------------------------- */}
-        <section id="servicios" className="site-section">
+        <section id="servicios" className="site-section home-services">
           <div className="wrap">
             <Reveal>
               <p className="site-eyebrow">Áreas de práctica</p>
@@ -312,22 +291,7 @@ export default async function PublicHomePage({
             </Reveal>
 
             <div className="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:mt-16 lg:grid-cols-4">
-              {(areas.length > 0
-                ? areas.map((area, index) => ({
-                    key: area.id,
-                    title: area.name,
-                    body: area.description ?? "Área de práctica del despacho.",
-                    glyph: GLYPHS[index % GLYPHS.length],
-                    lead: index === 0,
-                  }))
-                : SERVICES.map((service, index) => ({
-                    key: service.title,
-                    title: service.title,
-                    body: service.body,
-                    glyph: service.glyph,
-                    lead: index === 0,
-                  }))
-              ).map((service, index) => (
+              {services.map((service, index) => (
                 <Reveal
                   key={service.key}
                   delay={index * 80}
@@ -339,8 +303,9 @@ export default async function PublicHomePage({
                       service.lead ? "service-card--lead" : ""
                     }`}
                   >
+                    <span className="home-service-number" aria-hidden="true">/ {String(index + 1).padStart(2, "0")}</span>
                     <span className="service-glyph" aria-hidden="true">
-                      {service.glyph}
+                      <ServiceIcon name={service.icon} />
                     </span>
                     <h3
                       className={`site-display mt-5 ${
@@ -350,9 +315,14 @@ export default async function PublicHomePage({
                       {service.title}
                     </h3>
                     <p className="site-body-sm mt-3 flex-1">{service.body}</p>
-                    <a href="#contacto" className="service-link mt-6 self-start">
+                    <Link
+                      href={`/servicios/${service.slug}`}
+                      prefetch={false}
+                      className="service-link mt-6 self-start"
+                      aria-label={`Consultar esta área: ${service.title}`}
+                    >
                       Consultar esta área <span aria-hidden="true">↗</span>
-                    </a>
+                    </Link>
                   </div>
                 </Reveal>
               ))}
@@ -361,7 +331,7 @@ export default async function PublicHomePage({
         </section>
 
         {/* --- The firm --------------------------------------------------- */}
-        <section id="firma" className="site-band site-section">
+        <section id="firma" className="site-band site-section home-firm">
           <div className="wrap grid gap-14 lg:grid-cols-2 lg:gap-20">
             <div>
               <Reveal>
@@ -394,7 +364,7 @@ export default async function PublicHomePage({
               </Reveal>
             </div>
 
-            <div className="grid gap-px bg-ivory/12 sm:grid-cols-2">
+            <div className="home-principles grid gap-px bg-ivory/12 sm:grid-cols-2">
               {PRINCIPLES.map((principle, index) => (
                 <Reveal key={principle.number} delay={index * 80}>
                   <div className="h-full bg-petrol-deep p-6 sm:p-7">
@@ -428,7 +398,7 @@ export default async function PublicHomePage({
         </section>
 
         {/* --- The client portal ------------------------------------------ */}
-        <section id="portal" className="site-section">
+        <section id="portal" className="site-section home-portal">
           <div className="wrap grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
             <div>
               <Reveal>
@@ -477,7 +447,7 @@ export default async function PublicHomePage({
             <Reveal delay={160}>
               <div
                 aria-label="Vista ilustrativa del portal de clientes, con datos ficticios"
-                className="border border-ivory-line bg-surface p-6 shadow-[0_30px_60px_-45px_rgba(19,44,53,0.55)] sm:p-8"
+                className="home-portal-preview border border-ivory-line bg-surface p-6 shadow-[0_30px_60px_-45px_rgba(19,44,53,0.55)] sm:p-8"
               >
                 <div className="flex items-center justify-between gap-3">
                   <b className="text-[10px] tracking-[0.18em] text-petrol sm:text-[11px]">
@@ -532,7 +502,7 @@ export default async function PublicHomePage({
         </section>
 
         {/* --- Team --------------------------------------------------------- */}
-        <section id="equipo" className="site-section bg-ivory-warm">
+        <section id="equipo" className="site-section bg-ivory-warm home-team">
           <div className="wrap">
             <div className="grid gap-8 lg:grid-cols-[1.15fr_1fr] lg:items-end">
               <div>
@@ -674,7 +644,7 @@ export default async function PublicHomePage({
           </section>
         ) : null}
 
-        <section className="site-section">
+        <section id="criterio" className="site-section">
           <div className="wrap">
             <p className="site-eyebrow">Criterio Legal</p>
             <h2 className="site-display site-section-title mt-5">
@@ -737,7 +707,7 @@ export default async function PublicHomePage({
         </section>
 
         {/* --- Contact ------------------------------------------------------ */}
-        <section id="contacto" className="site-section">
+        <section id="contacto" className="site-section home-contact">
           <div className="wrap grid gap-14 lg:grid-cols-2 lg:gap-20">
             <div>
               <Reveal>
@@ -811,7 +781,7 @@ export default async function PublicHomePage({
             </div>
 
             <Reveal delay={160}>
-              <ContactForm />
+              <ContactForm areas={services.map((service) => service.title)} />
             </Reveal>
           </div>
         </section>

@@ -587,6 +587,13 @@ STAFF_ANALYSES_WRITE_PERMISSIONS: tuple[str, ...] = (
 )
 
 
+WEBSITE_ANALYTICS_PERMISSIONS: tuple[PermissionDefinition, ...] = (
+    PermissionDefinition(
+        "website_analytics:read", "website_analytics", "read",
+        "Consultar estadísticas de la web pública",
+    ),
+)
+
 ADMINISTRATOR_PERMISSIONS: tuple[str, ...] = tuple(
     definition.name
     for definition in (
@@ -605,6 +612,7 @@ ADMINISTRATOR_PERMISSIONS: tuple[str, ...] = tuple(
         *BILLING_PERMISSIONS,
         *AI_PERMISSIONS,
         *CLIENT_REQUEST_PERMISSIONS,
+        *WEBSITE_ANALYTICS_PERMISSIONS,
     )
 )
 
@@ -665,6 +673,7 @@ def get_permission_definitions() -> tuple[PermissionDefinition, ...]:
         *BILLING_PERMISSIONS,
         *AI_PERMISSIONS,
         *CLIENT_REQUEST_PERMISSIONS,
+        *WEBSITE_ANALYTICS_PERMISSIONS,
     )
 
 

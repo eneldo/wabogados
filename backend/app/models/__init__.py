@@ -33,6 +33,35 @@ class Base(DeclarativeBase):
     pass
 
 
+class WebsiteAnalyticsDaily(Base):
+    """Aggregate counters only: no IP, user, browser or individual browsing log."""
+
+    __tablename__ = "website_analytics_daily"
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    page_views: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    estimated_visitors: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    phone_clicks: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    consultations: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+
+
+class WebsiteAnalyticsPage(Base):
+    __tablename__ = "website_analytics_pages"
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    path: Mapped[str] = mapped_column(String(180), primary_key=True)
+    page_views: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    phone_clicks: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+
+
+class WebsiteAnalyticsDedup(Base):
+    """Short-lived random-token digests; no path or identifying attributes."""
+
+    __tablename__ = "website_analytics_dedup"
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

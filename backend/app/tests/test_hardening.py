@@ -505,10 +505,10 @@ async def _an_evidence_id(session: AsyncSession, case: Case) -> UUID:
 #: The only endpoints that may answer without credentials.
 #:
 #: `POST /api/v1/consultations` is here because it is the public site's form: it
-#: has to be reachable by somebody with no account, and it accepts nothing but
-#: what a visitor typed. It is the only unauthenticated **write** here, it has
-#: its own rate-limit budget, and adding it to this set is the explicit act that
-#: the rest of this module exists to require.
+#: has to be reachable by somebody with no account. The other anonymous write is
+#: the strictly shaped website analytics intake: no personal fields or totals
+#: are returned, and its rate budget is separate. Adding either to this set is
+#: the explicit act that the rest of this module exists to require.
 PUBLIC_PATHS = frozenset(
     {
         "/api/v1/health/live",
@@ -520,6 +520,7 @@ PUBLIC_PATHS = frozenset(
         "/api/v1/public/lawyers",
         "/api/v1/public/announcements",
         "/api/v1/public/analyses",
+        "/api/v1/public/analytics/events",
         "/openapi.json",
         "/docs",
         "/docs/oauth2-redirect",

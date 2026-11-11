@@ -52,10 +52,10 @@ const FOOTER_CONTACT = {
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
-export function SiteHeader() {
+export function SiteHeader({ homePage = true }: { homePage?: boolean }) {
   const [open, setOpen] = useState(false);
   const [condensed, setCondensed] = useState(false);
-  const [active, setActive] = useState<string>("#inicio");
+  const [active, setActive] = useState<string>(homePage ? "#inicio" : "#servicios");
   const frame = useRef<number | null>(null);
 
   useEffect(() => {
@@ -91,15 +91,15 @@ export function SiteHeader() {
         but what the reader wants to know is "what am I in the middle of", and
         the line 120px below the top of the window answers that directly.
       */
-      let current = "#inicio";
-      for (const link of LINKS) {
+      let current = homePage ? "#inicio" : "#servicios";
+      for (const link of homePage ? LINKS : []) {
         const section = document.querySelector(link.href);
         if (!section) continue;
         const top = section.getBoundingClientRect().top;
         if (top <= 140) current = link.href;
       }
       // At the very bottom the last section may never reach the line.
-      if (limit > 0 && scrollTop >= limit - 4) current = LINKS[LINKS.length - 1].href;
+      if (homePage && limit > 0 && scrollTop >= limit - 4) current = LINKS[LINKS.length - 1].href;
       setActive(current);
     }
 
@@ -123,7 +123,7 @@ export function SiteHeader() {
       window.removeEventListener("resize", schedule);
       if (frame.current !== null) window.cancelAnimationFrame(frame.current);
     };
-  }, []);
+  }, [homePage]);
 
   /*
     The scrim is a **sibling** of the header, not a child, and that is not a
@@ -141,7 +141,7 @@ export function SiteHeader() {
       <header className="site-header" data-condensed={condensed}>
         <div className="site-progress" aria-hidden="true" />
         <div className="wrap site-nav">
-          <Link href="#inicio" className="site-brand" aria-label="WABOGADOS, inicio">
+          <Link href={homePage ? "#inicio" : "/"} className="site-brand" aria-label="WABOGADOS, inicio">
             <BrandLogo priority imageClassName="site-logo" />
           </Link>
 
@@ -165,7 +165,7 @@ export function SiteHeader() {
             {LINKS.map((link) => (
               <a
                 key={link.href}
-                href={link.href}
+                href={homePage ? link.href : `/${link.href}`}
                 data-active={active === link.href}
                 aria-current={active === link.href ? "true" : undefined}
                 onClick={() => setOpen(false)}
@@ -210,13 +210,13 @@ export function SiteHeader() {
   );
 }
 
-export function SiteFooter() {
+export function SiteFooter({ homePage = true }: { homePage?: boolean }) {
   return (
     <footer className="site-band">
       <div className="wrap">
         <DrawRule />
         <div className="flex flex-col items-start gap-8 py-12 lg:flex-row lg:items-center lg:justify-between">
-          <Link href="#inicio" className="site-brand site-brand--footer" aria-label="WABOGADOS, inicio">
+          <Link href={homePage ? "#inicio" : "/"} className="site-brand site-brand--footer" aria-label="WABOGADOS, inicio">
             <BrandLogo size="footer" imageClassName="site-logo" />
           </Link>
 
@@ -235,8 +235,12 @@ export function SiteFooter() {
             <small className="text-xs text-ivory/55">
               © 2026 WABOGADOS · Propuesta de diseño
             </small>
+            <p className="max-w-[46ch] text-xs leading-relaxed text-ivory/70">
+              Estadísticas agregadas sin cookies: no guardamos IP ni datos del
+              formulario en los contadores. Respetamos Do Not Track y Global Privacy Control.
+            </p>
             <div className="flex flex-wrap gap-6 text-xs">
-              <a href="#contacto" className="text-ivory/70 transition-colors hover:text-gold">
+              <a href={homePage ? "#contacto" : "/#contacto"} className="text-ivory/70 transition-colors hover:text-gold">
                 Contacto <span aria-hidden="true">↗</span>
               </a>
               <Link

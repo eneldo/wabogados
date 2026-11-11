@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { SiteDialog } from "./site-dialog";
+import { CONSULTATION_AREAS } from "@/lib/consultation-areas";
 
 /**
  * The consultation form.
@@ -23,18 +24,6 @@ import { SiteDialog } from "./site-dialog";
  *   description of their legal problem and was rate limited still has it.
  */
 
-/** The seven areas the firm publishes, plus its own escape hatch. */
-const AREAS = [
-  "Derecho penal",
-  "Ley familiar",
-  "Derecho laboral",
-  "Derecho constitucional",
-  "Derecho civil",
-  "Derecho comercial",
-  "Asesorías empresariales",
-  "Otra consulta",
-];
-
 type Status =
   | { kind: "idle" }
   | { kind: "sending" }
@@ -42,7 +31,11 @@ type Status =
   | { kind: "refused"; message: string }
   | { kind: "failed"; message: string };
 
-export function ContactForm({ requestedArea }: { requestedArea?: string }) {
+export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
+  requestedArea?: string;
+  areas?: string[];
+}) {
+  const options = [...new Set([...areas, "Otra consulta"])];
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
@@ -72,7 +65,7 @@ export function ContactForm({ requestedArea }: { requestedArea?: string }) {
 
       const payload: unknown = await response.json().catch(() => null);
 
-      if (response.ok) {
+      if (response.status === 201) {
         const ack = payload as { reference?: string; message?: string } | null;
         setStatus({
           kind: "sent",
@@ -92,7 +85,8 @@ export function ContactForm({ requestedArea }: { requestedArea?: string }) {
         message:
           response.status === 429
             ? "Ha enviado varias solicitudes en poco tiempo. Inténtelo de nuevo en unos minutos o llámenos al +57 312 469 9617."
-            : "No pudimos registrar la solicitud. Revise los campos e inténtelo de nuevo, o llámenos.",
+            : (payload as { error?: { message?: string } } | null)?.error?.message
+              ?? "No pudimos registrar la solicitud. Revise los campos e inténtelo de nuevo, o llámenos.",
       });
     } catch {
       setStatus({
@@ -156,7 +150,7 @@ export function ContactForm({ requestedArea }: { requestedArea?: string }) {
             className="site-input"
           >
             <option value="">Seleccione un área</option>
-            {AREAS.map((option) => (
+            {options.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
@@ -265,6 +259,13 @@ export function ContactForm({ requestedArea }: { requestedArea?: string }) {
             <strong>Para qué.</strong> Únicamente para valorar su consulta y
             comunicarnos con usted. No usamos sus datos con fines comerciales ni
             los cedemos a terceros.
+          </p>
+          <p>
+            <strong>Estadísticas de la web.</strong> Los contadores solo conservan
+            totales de páginas públicas, navegaciones estimadas, clics en teléfono
+            y solicitudes registradas. No reciben el contenido de este formulario
+            ni usan cookies o huellas del dispositivo. Se respetan Do Not Track y
+            Global Privacy Control para las métricas de navegación.
           </p>
           <p>
             <strong>Cuánto tiempo.</strong> Hasta que su consulta se atienda o se

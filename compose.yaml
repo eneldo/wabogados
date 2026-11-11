@@ -92,6 +92,7 @@ services:
     build:
       context: ./backend
     environment:
+      WEBSITE_ANALYTICS_ENABLED: ${WEBSITE_ANALYTICS_ENABLED:-true}
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-wabogados}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-wabogados}
       STORAGE_ROOT: /var/lib/wabogados/storage
@@ -224,6 +225,7 @@ services:
     build:
       context: ./frontend
     environment:
+      WEBSITE_ANALYTICS_ENABLED: ${WEBSITE_ANALYTICS_ENABLED:-true}
       API_INTERNAL_URL: http://backend:8000
     ports:
       - "${FRONTEND_PORT:-3000}:3000"

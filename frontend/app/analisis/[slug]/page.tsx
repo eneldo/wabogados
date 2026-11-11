@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { apiFetchOr } from "@/lib/api";
+import { PublicAnalytics } from "@/components/public/public-analytics";
 
 export default async function AnalysisDetailPage({
   params,
@@ -32,6 +33,7 @@ export default async function AnalysisDetailPage({
 
   return (
     <div className="public-site">
+      <PublicAnalytics path={`/analisis/${analysis.slug}`} enabled={process.env.WEBSITE_ANALYTICS_ENABLED !== "false"} />
       <main className="wrap py-16">
         <Link href="/" className="text-sm text-wax underline-offset-4 hover:underline">
           ← Volver al inicio

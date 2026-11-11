@@ -1,5 +1,6 @@
+import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -15,6 +16,7 @@ from app.core.config import Settings, get_settings
 from app.middleware.audit import AuditLogMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.services.storage import initialize_storage
+from app.services.website_analytics import retention_loop
 
 settings = get_settings()
 
@@ -83,7 +85,13 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     del application
     assert_production_is_safe(settings)
     await initialize_storage(settings)
-    yield
+    retention = asyncio.create_task(retention_loop())
+    try:
+        yield
+    finally:
+        retention.cancel()
+        with suppress(asyncio.CancelledError):
+            await retention
 
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)

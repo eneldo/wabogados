@@ -53,6 +53,7 @@ export type IconName =
   | "multimedia"
   | "ai"
   | "billing"
+  | "analytics"
   | "security"
   | "config";
 
@@ -182,6 +183,14 @@ export const ADMIN_MODULES: AdminModule[] = [
     // trail and the role catalogue have their own permissions, and the screen
     // shows whichever of the three the profile is allowed to open.
     permission: "users:read",
+  },
+  {
+    slug: "estadisticas-web",
+    label: "Estadísticas web",
+    href: "/admin/estadisticas-web",
+    icon: "analytics",
+    state: "ready",
+    permission: "website_analytics:read",
   },
   {
     slug: "config",

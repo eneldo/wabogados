@@ -21,6 +21,7 @@ from app.schemas.consultations import (
     ConsultationCreate,
     ConsultationUpdate,
 )
+from app.services.website_analytics import record_consultation
 
 
 class ConsultationError(Exception):
@@ -51,6 +52,7 @@ class ConsultationService:
         )
         self.session.add(request)
         await self.session.flush()
+        await record_consultation(self.session, request.consent_at)
         return request
 
     async def get(self, request_id: UUID) -> ConsultationRequest | None:

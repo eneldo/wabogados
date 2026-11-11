@@ -38,6 +38,7 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: "off",
+    extraHTTPHeaders: { DNT: "1" },
   },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
@@ -52,8 +53,13 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      name: "website-analytics",
+      testMatch: /website-analytics\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "layout",
-      testIgnore: [/public-site\.spec\.ts/, /admin-portal\.spec\.ts/],
+      testIgnore: [/public-site\.spec\.ts/, /admin-portal\.spec\.ts/, /website-analytics\.spec\.ts/],
       use: {
         ...devices["Desktop Chrome"],
         storageState: "e2e/.auth.json",
