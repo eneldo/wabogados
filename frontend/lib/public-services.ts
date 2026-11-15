@@ -27,6 +27,28 @@ const SERVICE_ICONS: Record<string, ServiceIconName> = {
   empresarial: "building",
 };
 
+const SERVICE_HINTS: Record<string, string> = {
+  administrativo: "Trámites, actuaciones o controversias ante entidades públicas.",
+  ambiental: "Permisos, obligaciones o conflictos relacionados con el entorno.",
+  bancario: "Relaciones con entidades financieras, obligaciones o reclamaciones.",
+  civil: "Contratos, obligaciones, responsabilidad o conflictos entre particulares.",
+  comercial: "Negocios, sociedades, acuerdos mercantiles y actividad empresarial.",
+  familia: "Divorcios, alimentos, custodia, sucesiones y asuntos familiares.",
+  familiar: "Divorcios, alimentos, custodia, sucesiones y asuntos familiares.",
+  "ley-familiar": "Divorcios, alimentos, custodia, sucesiones y asuntos familiares.",
+  inmobiliario: "Compra, venta, arriendos, propiedad o conflictos sobre inmuebles.",
+  internacional: "Asuntos con elementos o efectos fuera de Colombia.",
+  laboral: "Contratos, despidos, acoso, prestaciones o relaciones de trabajo.",
+  penal: "Investigaciones, citaciones, imputaciones o defensa en procesos penales.",
+  procesal: "Demandas, recursos, términos y actuaciones dentro de un proceso.",
+  tributario: "Impuestos, obligaciones fiscales, sanciones o requerimientos.",
+  fiscal: "Impuestos, obligaciones fiscales, sanciones o requerimientos.",
+  constitucional: "Protección de derechos fundamentales y acciones constitucionales.",
+  "asesorias-empresariales": "Acompañamiento legal preventivo y estratégico para empresas.",
+  "asesoria-empresarial": "Acompañamiento legal preventivo y estratégico para empresas.",
+  empresarial: "Acompañamiento legal preventivo y estratégico para empresas.",
+};
+
 /** The firm's published copy, used only when the live catalogue is unavailable. */
 const FALLBACK_SERVICES = [
   { title: "Derecho penal", body: "Asesoría a altos ejecutivos para tomar mejores decisiones en casos penales." },
@@ -43,10 +65,20 @@ export function serviceSlug(name: string): string {
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function serviceKey(name: string): string {
+  return serviceSlug(name).replace(/^derecho-(?:de-|del-)?/, "");
+}
+
 /** Resolve by meaning, never by catalogue position or database ID. */
 export function serviceIconName(name: string): ServiceIconName {
-  const key = serviceSlug(name).replace(/^derecho-(?:de-|del-)?/, "");
+  const key = serviceKey(name);
   return Object.hasOwn(SERVICE_ICONS, key) ? SERVICE_ICONS[key] : "scales";
+}
+
+export function serviceHint(name: string): string | null {
+  const key = serviceKey(name);
+  if (Object.hasOwn(SERVICE_HINTS, key)) return SERVICE_HINTS[key];
+  return "Cuéntenos su situación y le orientaremos sobre el alcance de esta área.";
 }
 
 export function publicServices(areas: LegalAreaOption[]) {
@@ -62,6 +94,7 @@ export function publicServices(areas: LegalAreaOption[]) {
     ...service,
     slug: serviceSlug(service.title),
     icon: serviceIconName(service.title),
+    hint: serviceHint(service.title),
     lead: index === 0,
   }));
 }

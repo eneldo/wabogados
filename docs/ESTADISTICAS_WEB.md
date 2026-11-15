@@ -9,7 +9,10 @@ la barrera de seguridad.
 
 El panel muestra páginas vistas, navegaciones estimadas, clics en teléfono,
 solicitudes realmente registradas, áreas jurídicas más vistas y evolución diaria
-y mensual. Permite rangos de hasta 366 días, en `America/Bogota`.
+y mensual. Incluye un **embudo estimado de priorización** (portada → áreas →
+clics en teléfono → solicitudes registradas) con proporciones agregadas del
+periodo, para orientar mejoras de contenido y contacto. Permite rangos de hasta
+366 días, en `America/Bogota`.
 
 **No es un contador de personas exactas.** El navegador genera un UUID aleatorio
 en memoria, compartido durante la navegación cliente. No se almacena en cookies,

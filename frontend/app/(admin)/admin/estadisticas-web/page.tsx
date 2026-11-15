@@ -36,6 +36,18 @@ export default async function WebsiteAnalyticsPage({ searchParams }: {
   const names = new Map(services.map((service) => [`/servicios/${service.slug}`, service.title]));
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Bogota" });
   const maximum = Math.max(1, ...data.daily.map((item) => item.page_views));
+  const home = data.pages.find((item) => item.path === "/");
+  const serviceViews = data.areas.reduce((sum, item) => sum + item.page_views, 0);
+  const servicePhoneClicks = data.areas.reduce((sum, item) => sum + item.phone_clicks, 0);
+  const homePhoneClicks = home?.phone_clicks ?? 0;
+  const funnel = [
+    { label: "1. Vistas de portada", value: home?.page_views ?? 0, hint: "Entradas/lecturas registradas en la página principal." },
+    { label: "2. Vistas de áreas de servicio", value: serviceViews, hint: "Navegaciones a páginas /servicios/* en el periodo." },
+    { label: "3. Clics en teléfono", value: data.totals.phone_clicks, hint: `Total en páginas públicas (portada: ${number(homePhoneClicks)}, áreas: ${number(servicePhoneClicks)}).` },
+    { label: "4. Solicitudes registradas", value: data.totals.consultations, hint: "Consultas aceptadas y registradas por el servidor." },
+  ] as const;
+  const rate = (numerator: number, denominator: number) =>
+    denominator > 0 ? `${((numerator / denominator) * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })}%` : "—";
   const kpis = [
     ["Páginas vistas", data.totals.page_views],
     ["Visitantes estimados · suma diaria", data.totals.estimated_visitors],
@@ -61,6 +73,30 @@ export default async function WebsiteAnalyticsPage({ searchParams }: {
       <RuleNote>
         Los visitantes son navegaciones anónimas estimadas, no personas identificadas. Una recarga o una nueva pestaña puede contar de nuevo. Los totales del periodo suman estimaciones diarias, no visitantes únicos mensuales. Los clics no acreditan una llamada completada; las solicitudes solo cuentan cuando se registran en el servidor. No hay datos anteriores a la activación.
       </RuleNote>
+
+      <Card className="p-5 sm:p-6">
+        <h2 className="font-display text-xl">Embudo estimado (priorización)</h2>
+        <p className="mt-2 text-sm text-ink-muted">
+          Relación agregada del periodo entre pasos públicos. No es atribución de personas ni un embudo de sesión único.
+        </p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {funnel.map((step) => (
+            <div key={step.label} className="rounded-card border border-rule bg-paper-deep/30 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">{step.label}</p>
+              <p className="font-display mt-2 text-3xl">{number(step.value)}</p>
+              <p className="mt-2 text-xs text-ink-muted">{step.hint}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
+          <p><strong>Portada → área:</strong> {rate(serviceViews, home?.page_views ?? 0)}</p>
+          <p><strong>Área → clic teléfono:</strong> {rate(servicePhoneClicks, serviceViews)}</p>
+          <p><strong>Interés → solicitud registrada:</strong> {rate(data.totals.consultations, data.totals.phone_clicks || (home?.page_views ?? 0) + serviceViews)}</p>
+        </div>
+        <p className="mt-3 text-xs text-ink-muted">
+          Use estas proporciones para detectar caídas por etapa y priorizar mejoras de contenido, claridad de áreas o contacto. Interprete junto a “Áreas jurídicas más consultadas”.
+        </p>
+      </Card>
 
       {data.totals.page_views === 0 ? <EmptyState title="Aún no hay visitas registradas en este periodo" hint="No se incluyen navegadores que rechacen el seguimiento, bloqueen el script o tengan JavaScript desactivado." /> : (
         <Card className="p-6">

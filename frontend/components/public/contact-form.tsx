@@ -31,12 +31,48 @@ type Status =
   | { kind: "refused"; message: string }
   | { kind: "failed"; message: string };
 
+type FieldName = "fullName" | "phone" | "email" | "area" | "message" | "consent";
+type FieldErrors = Partial<Record<FieldName, string>>;
+
+const CONTACT_PHONE = "+57 312 469 9617";
+const CONTACT_PHONE_HREF = "+573124699617";
+
+function validateForm(data: FormData): FieldErrors {
+  const errors: FieldErrors = {};
+  const fullName = String(data.get("fullName") ?? "").trim();
+  const phone = String(data.get("phone") ?? "").trim();
+  const email = String(data.get("email") ?? "").trim();
+  const area = String(data.get("area") ?? "").trim();
+  const message = String(data.get("message") ?? "").trim();
+  const consent = data.get("consent") === "on";
+
+  if (!fullName) errors.fullName = "Indique su nombre completo.";
+  if (!phone) errors.phone = "Indique un teléfono de contacto.";
+  if (!email) {
+    errors.email = "Indique su correo electrónico.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.email = "Indique un correo electrónico válido.";
+  }
+  if (!area) errors.area = "Seleccione el área de consulta.";
+  if (!message) {
+    errors.message = "Describa brevemente su consulta.";
+  } else if (message.length < 10) {
+    errors.message = "La descripción debe tener al menos 10 caracteres.";
+  } else if (message.length > 1500) {
+    errors.message = "La descripción no puede superar 1500 caracteres.";
+  }
+  if (!consent) errors.consent = "Debe autorizar el tratamiento de datos para enviar la solicitud.";
+
+  return errors;
+}
+
 export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
   requestedArea?: string;
   areas?: string[];
 }) {
   const options = [...new Set([...areas, "Otra consulta"])];
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
 
@@ -46,6 +82,19 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
     if (status.kind === "sending") return;
 
     const data = new FormData(form);
+    const errors = validateForm(data);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setStatus({ kind: "idle" });
+      const first = Object.keys(errors)[0] as FieldName | undefined;
+      if (first) {
+        const el = form.querySelector<HTMLElement>(`[name="${first}"]`);
+        el?.focus();
+      }
+      return;
+    }
+
+    setFieldErrors({});
     setStatus({ kind: "sending" });
 
     try {
@@ -53,11 +102,11 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: data.get("fullName") ?? "",
-          phone: data.get("phone") ?? "",
-          email: data.get("email") ?? "",
-          area: data.get("area") ?? "",
-          message: data.get("message") ?? "",
+          fullName: String(data.get("fullName") ?? "").trim(),
+          phone: String(data.get("phone") ?? "").trim(),
+          email: String(data.get("email") ?? "").trim(),
+          area: String(data.get("area") ?? "").trim(),
+          message: String(data.get("message") ?? "").trim(),
           consent: data.get("consent") === "on",
           website: data.get("website") ?? "",
         }),
@@ -84,15 +133,15 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
         kind: "refused",
         message:
           response.status === 429
-            ? "Ha enviado varias solicitudes en poco tiempo. Inténtelo de nuevo en unos minutos o llámenos al +57 312 469 9617."
+            ? `Ha enviado varias solicitudes en poco tiempo. Inténtelo de nuevo en unos minutos o llámenos al ${CONTACT_PHONE}.`
             : (payload as { error?: { message?: string } } | null)?.error?.message
-              ?? "No pudimos registrar la solicitud. Revise los campos e inténtelo de nuevo, o llámenos.",
+              ?? `No pudimos registrar la solicitud. Revise los campos e inténtelo de nuevo, o llámenos al ${CONTACT_PHONE}.`,
       });
     } catch {
       setStatus({
         kind: "failed",
         message:
-          "No pudimos comunicarnos con el servidor. Sus datos siguen en el formulario: inténtelo de nuevo.",
+          `No pudimos comunicarnos con el servidor. Sus datos siguen en el formulario: inténtelo de nuevo o llámenos al ${CONTACT_PHONE}.`,
       });
     }
   }
@@ -102,21 +151,35 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
       <form
         key={formKey}
         onSubmit={onSubmit}
-        noValidate={false}
+        noValidate
         className="space-y-4"
       >
+        <p className="rounded-card border border-ivory-line bg-ivory-warm px-4 py-3 text-sm text-petrol-soft">
+          <strong>Qué ocurre al enviar:</strong> registramos su solicitud y el despacho
+          la revisará para contactarle. Si necesita atención inmediata, llámenos al{" "}
+          <a
+            className="underline decoration-gold decoration-1 underline-offset-4 hover:text-gold-deep"
+            href={`tel:${CONTACT_PHONE_HREF}`}
+          >
+            {CONTACT_PHONE}
+          </a>
+          .
+        </p>
+
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nombre completo" htmlFor="fullName">
+          <Field label="Nombre completo" htmlFor="fullName" error={fieldErrors.fullName}>
             <input
               id="fullName"
               name="fullName"
               autoComplete="name"
               required
               placeholder="¿Cómo podemos llamarle?"
+              aria-invalid={fieldErrors.fullName ? true : undefined}
+              aria-describedby={fieldErrors.fullName ? "fullName-error" : undefined}
               className="site-input"
             />
           </Field>
-          <Field label="Teléfono" htmlFor="phone">
+          <Field label="Teléfono" htmlFor="phone" error={fieldErrors.phone}>
             <input
               id="phone"
               name="phone"
@@ -124,12 +187,14 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
               autoComplete="tel"
               required
               placeholder="Su número de contacto"
+              aria-invalid={fieldErrors.phone ? true : undefined}
+              aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
               className="site-input"
             />
           </Field>
         </div>
 
-        <Field label="Correo electrónico" htmlFor="email">
+        <Field label="Correo electrónico" htmlFor="email" error={fieldErrors.email}>
           <input
             id="email"
             name="email"
@@ -137,16 +202,20 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
             autoComplete="email"
             required
             placeholder="nombre@correo.com"
+            aria-invalid={fieldErrors.email ? true : undefined}
+            aria-describedby={fieldErrors.email ? "email-error" : undefined}
             className="site-input"
           />
         </Field>
 
-        <Field label="Área de consulta" htmlFor="area">
+        <Field label="Área de consulta" htmlFor="area" error={fieldErrors.area}>
           <select
             id="area"
             name="area"
             required
             defaultValue={requestedArea ?? ""}
+            aria-invalid={fieldErrors.area ? true : undefined}
+            aria-describedby={fieldErrors.area ? "area-error" : undefined}
             className="site-input"
           >
             <option value="">Seleccione un área</option>
@@ -158,7 +227,7 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
           </select>
         </Field>
 
-        <Field label="¿En qué podemos orientarle?" htmlFor="message">
+        <Field label="¿En qué podemos orientarle?" htmlFor="message" error={fieldErrors.message}>
           <textarea
             id="message"
             name="message"
@@ -167,8 +236,13 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
             maxLength={1500}
             rows={4}
             placeholder="Describa brevemente su consulta."
+            aria-invalid={fieldErrors.message ? true : undefined}
+            aria-describedby={[fieldErrors.message ? "message-error" : null, "message-hint"].filter(Boolean).join(" ")}
             className="site-input resize-y"
           />
+          <p id="message-hint" className="mt-1 text-xs text-slate">
+            Mínimo 10 y máximo 1500 caracteres.
+          </p>
         </Field>
 
         {/*
@@ -182,20 +256,37 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
           <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" />
         </div>
 
-        <label className="flex items-start gap-3 text-sm text-slate">
-          <input type="checkbox" name="consent" required className="mt-1" />
-          <span>
-            He leído el{" "}
-            <button
-              type="button"
-              onClick={() => setPrivacyOpen(true)}
-              className="service-link"
-            >
-              aviso de privacidad
-            </button>{" "}
-            y autorizo a WABOGADOS a tratar mis datos para valorar mi consulta.
-          </span>
-        </label>
+        <div>
+          <label className="flex items-start gap-3 text-sm text-slate">
+            <input
+              type="checkbox"
+              name="consent"
+              required
+              aria-invalid={fieldErrors.consent ? true : undefined}
+              aria-describedby={fieldErrors.consent ? "consent-error consent-hint" : "consent-hint"}
+              className="mt-1"
+            />
+            <span>
+              He leído el{" "}
+              <button
+                type="button"
+                onClick={() => setPrivacyOpen(true)}
+                className="service-link"
+              >
+                aviso de privacidad
+              </button>{" "}
+              y autorizo a WABOGADOS a tratar mis datos para valorar mi consulta.
+            </span>
+          </label>
+          <p id="consent-hint" className="mt-1 ml-7 text-xs text-slate">
+            Usaremos sus datos solo para atender esta solicitud; no los cedemos con fines comerciales.
+          </p>
+          {fieldErrors.consent ? (
+            <p id="consent-error" className="mt-1 ml-7 text-xs text-wax-deep" role="alert">
+              {fieldErrors.consent}
+            </p>
+          ) : null}
+        </div>
 
         <button
           type="submit"
@@ -227,7 +318,8 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
 
           {status.kind === "refused" || status.kind === "failed" ? (
             <p className="border border-gold/45 bg-ivory-warm px-4 py-3 text-sm text-petrol-soft">
-              <strong>No pudimos registrar su solicitud.</strong> {status.message}
+              <strong>No pudimos registrar su solicitud.</strong> {status.message}{" "}
+              Sus datos permanecen en el formulario.
             </p>
           ) : null}
         </div>
@@ -245,10 +337,16 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
 
         <div className="site-body mt-6 space-y-4">
           <p>
-            <strong>Responsable.</strong> WABOGADOS, en Bogotá D.C. La razón social
-            completa está pendiente de confirmación por la firma. Puede ejercer sus
-            derechos escribiendo a la dirección de la oficina indicada en esta
-            página.
+            <strong>Responsable.</strong> WABOGADOS, en Bogotá D.C. Responsable del
+            tratamiento: William Andres Ruiz. Puede ejercer sus derechos en el
+            Edificio Berna Carrera 9 No. 16-20 Oficina 206, Bogotá, o escribiendo a{" "}
+            <a
+              className="underline decoration-gold decoration-1 underline-offset-4 hover:text-gold-deep"
+              href="mailto:amiabogado@hotmail.com"
+            >
+              amiabogado@hotmail.com
+            </a>
+            .
           </p>
           <p>
             <strong>Qué recogemos.</strong> Nombre, teléfono, correo electrónico,
@@ -276,23 +374,14 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
           <p>
             <strong>Sus derechos.</strong> Puede conocer, corregir, actualizar y
             solicitar la eliminación de sus datos, y revocar este consentimiento en
-            cualquier momento, escribiendo a la oficina. La eliminación del registro
-            de esta solicitud es real: no queda una copia archivada.
+            cualquier momento, a través de los canales indicados. La eliminación del
+            registro de esta solicitud es real: no queda una copia archivada.
           </p>
           <p>
             <strong>Carácter opcional.</strong> Todos los campos son obligatorios
             porque sin ellos no podemos valorar su consulta.
           </p>
         </div>
-
-        <p className="site-note mt-7">
-          <span className="pending-tag mr-3">Pendiente de revisión</span>
-          Este aviso se redactó con la información que la firma publica en su sitio
-          —razón social, dirección y teléfono— y <strong>falta que el despacho lo
-          revise y lo apruebe</strong> antes de que la web esté en producción. En
-          particular están sin confirmar el canal de contacto para ejercer los
-          derechos y el nombre del responsable del tratamiento.
-        </p>
       </SiteDialog>
     </>
   );
@@ -301,10 +390,12 @@ export function ContactForm({ requestedArea, areas = CONSULTATION_AREAS }: {
 function Field({
   label,
   htmlFor,
+  error,
   children,
 }: {
   label: string;
   htmlFor: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -316,6 +407,11 @@ function Field({
         {label}
       </label>
       {children}
+      {error ? (
+        <p id={`${htmlFor}-error`} className="mt-1 text-xs text-wax-deep" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

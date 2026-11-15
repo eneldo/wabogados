@@ -6,6 +6,8 @@ import "./public-site.css";
 
 import { WebVitals } from "@/components/web-vitals";
 
+const site = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || "http://localhost:3000";
+
 /*
   Three faces, each with a job. Fraunces carries the voice of the document.
   IBM Plex Sans is the interface: institutional, designed for German technical
@@ -35,8 +37,26 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WABOGADOS V1",
-  description: "Gestión de expedientes, evidencias y comunicación con el despacho.",
+  metadataBase: new URL(site),
+  title: {
+    default: "WABOGADOS | Asesoría jurídica en Bogotá",
+    template: "%s | WABOGADOS",
+  },
+  description:
+    "Acompañamiento jurídico para personas y empresas en Bogotá: orientación clara, estrategia y seguimiento cercano.",
+  applicationName: "WABOGADOS",
+  openGraph: {
+    type: "website",
+    locale: "es_CO",
+    siteName: "WABOGADOS",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

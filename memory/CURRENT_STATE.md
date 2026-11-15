@@ -1,12 +1,38 @@
 # CURRENT STATE
 
-## Estado vigente consolidado — 2026-11-11
+## Estado vigente consolidado — 2026-11-11 (actualizado 2026-11-15)
 
 Esta sección y `session_summary.md` prevalecen sobre las notas históricas de abajo.
 
-- Aplicación local en ejecución: portada `http://localhost:3000`, acceso
-  `/login`, backend `http://localhost:8000/docs`; backend/frontend saludables al
-  cerrar. No se hizo un despliegue al dominio público de Internet.
+- Aplicación local en ejecución (verificada 2026-11-15): portada `http://localhost:3000`,
+  acceso `/login`, backend `http://localhost:8000/docs`; frontend y backend responden HTTP 200.
+  Stack levantado con contenedores/imágenes existentes (sin rebuild). `evidence-worker` en
+  reinicio al momento de la verificación (no afecta la web pública). No se hizo despliegue al
+  dominio público de Internet.
+- **Plan P0 mejora web pública (2026-11-15, autorizado):** **completado (pasos 1–3)** y desplegado
+  localmente en frontend reconstruido. Incluye datos legales/contacto aprobados, retiro de notas
+  pendientes correspondientes, mejoras de claridad/accesibilidad/conversión del formulario (contrato 201
+  preservado) y ajustes de confianza en equipo sin inventar credenciales. Detalle y registro por paso en
+  `memory/P0_PUBLIC_SITE_PLAN.md`. Cambios en árbol sin commit/push.
+- **Plan P1 mejora web pública (2026-11-15, autorizado):** **completado (pasos 4–7)** y desplegado
+  localmente en frontend reconstruido (hero/CTA y escaneabilidad de servicios con orientación genérica,
+  estado del sistema contextual, CTA móvil discreto, estados condicionales más claros). Cada paso
+  registrado en memoria antes de continuar. Detalle en `memory/P0_PUBLIC_SITE_PLAN.md`.
+- **Plan P2 mejora web pública (2026-11-15, autorizado):** **completado (pasos 8–10)** y desplegado
+  localmente en frontend reconstruido (SEO/metadatos + JSON-LD verificado + robots/sitemap, mejoras
+  seguras de rendimiento en imágenes no críticas, y accesibilidad básica con skip link/main landmark).
+- **Plan P3 mejora web pública (2026-11-15, autorizado):** **completado (pasos 11–13)** y desplegado
+  localmente (embudo estimado en analítica privada, consistencia NAP/enlace de ubicación, pruebas públicas
+  19/19 y documentación actualizada). **P0–P3 completados.** Cada paso registrado en memoria antes de
+  continuar. Cambios en árbol sin commit/push. Ver `memory/P0_PUBLIC_SITE_PLAN.md`.
+- **Administración (continuación)**: módulos separados **Usuarios**
+  (`/admin/usuarios`) y **Roles** (`/admin/roles`); **Seguridad** queda como
+  **Auditoría** (`/admin/seguridad`, redirige `?vista=usuarios|roles`). Usuarios:
+  alta/edición/desactivación/reactivación y asignación de roles. Roles: CRUD con
+  gestión de permisos (`roles:manage`) vía `POST/PATCH/DELETE /api/v1/admin/roles`
+  (backend) y UI con selector de permisos. Verificado por API y rutas frontend.
+  Backend actualizado en contenedor por hot-patch de archivos (sin rebuild completo
+  por Dockerfile/pendientes no validados); frontend reconstruido. Cambios sin commit.
 - Portada editorial renovada, móvil/escritorio, con identidad azul/gris/rojo,
   logo y datos reales conservados. Cada una de las doce tarjetas abre su propia
   página `/servicios/[slug]` con consulta preseleccionada. Iconos SVG asignados

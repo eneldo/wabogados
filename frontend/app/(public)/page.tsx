@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -6,12 +7,35 @@ import { apiFetchOr } from "@/lib/api";
 import { landingFor } from "@/lib/landing";
 import { requireSession } from "@/lib/session-guard";
 import { getPublicServices } from "@/lib/public-services.server";
+import { SITE_CONTACT, SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
 import { ContactForm } from "@/components/public/contact-form";
 import { NewsSection } from "@/components/public/news-section";
 import { Reveal } from "@/components/public/reveal";
 import { SiteFooter, SiteHeader } from "@/components/public/site-header";
 import { ServiceIcon } from "@/components/public/service-icon";
 import { PublicAnalytics } from "@/components/public/public-analytics";
+import { PublicMobileCta } from "@/components/public/mobile-cta";
+
+export const metadata: Metadata = {
+  title: "Asesoría jurídica para personas y empresas en Bogotá",
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "WABOGADOS | Asesoría jurídica en Bogotá",
+    description: SITE_DESCRIPTION,
+    url: "/",
+    locale: "es_CO",
+    type: "website",
+    siteName: SITE_NAME,
+    images: [{ url: "/marca/wabogados-logo.webp", alt: "WABOGADOS" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "WABOGADOS | Asesoría jurídica en Bogotá",
+    description: SITE_DESCRIPTION,
+    images: ["/marca/wabogados-logo.webp"],
+  },
+};
 
 /**
  * The public site.
@@ -94,18 +118,8 @@ const TEAM = [
   },
 ];
 
-/*
-  Contact details as published by the firm. The email is the one item that could
-  not be recovered: wabogados.co serves it behind Cloudflare's email
-  protection, so the address is not in the page source. It stays pending rather
-  than guessed.
-*/
-const CONTACT = {
-  address: "Cra. 9 # 16-20, oficina 206, edificio Berna, Bogotá D.C.",
-  phone: "+57 312 469 9617",
-  phoneHref: "+573124699617",
-  schedule: "Lunes a viernes, 8:00 a. m. a 7:00 p. m.",
-};
+/* Contact details as published and approved by the firm. */
+const CONTACT = SITE_CONTACT;
 
 /*
   Allied firms, with their marks as published on wabogados.co. A partner's logo
@@ -165,12 +179,46 @@ export default async function PublicHomePage({
       ? landingFor(session.profile.roles, session.profile.permissions).href
       : null;
 
+  const base = siteUrl();
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": ["Organization", "LegalService", "LocalBusiness"],
+        "@id": `${base}/#organizacion`,
+        name: SITE_NAME,
+        url: base,
+        telephone: CONTACT.phone,
+        email: CONTACT.email,
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: "Edificio Berna Carrera 9 No. 16-20 Oficina 206",
+          addressLocality: "Bogotá D.C.",
+          addressCountry: "CO",
+        },
+        areaServed: "Colombia",
+        description: SITE_DESCRIPTION,
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${base}/#sitio`,
+        name: SITE_NAME,
+        url: base,
+        inLanguage: "es-CO",
+      },
+    ],
+  };
+
   return (
     <div className="public-site public-home">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <PublicAnalytics path="/" enabled={process.env.WEBSITE_ANALYTICS_ENABLED !== "false"} />
       <SiteHeader />
 
-      <main>
+      <main id="contenido-principal">
         {/* --- Hero ------------------------------------------------------ */}
         <div id="inicio" className="wrap home-intro">
           <div className="home-location">
@@ -196,27 +244,32 @@ export default async function PublicHomePage({
               </Reveal>
 
               <Reveal delay={160}>
-                <p className="site-body mt-7 max-w-[42ch]">
-                  Detrás de cada caso hay una historia. La escuchamos, trazamos
-                  una estrategia y le acompañamos en cada decisión.
+                <p className="site-body mt-7 max-w-[46ch]">
+                  Acompañamos a personas y empresas con orientación jurídica clara,
+                  estrategia a la medida y seguimiento cercano para tomar decisiones
+                  informadas en cada etapa.
                 </p>
               </Reveal>
 
               <Reveal delay={240}>
                 <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <a href="#contacto" className="site-btn justify-center">
+                    Solicitar consulta <span aria-hidden="true">↗</span>
+                  </a>
                   {portalHref ? (
-                    <Link href={portalHref} className="site-btn justify-center">
+                    <Link href={portalHref} className="site-btn line justify-center">
                       Ir a mi portal <span aria-hidden="true">↗</span>
                     </Link>
                   ) : (
-                    <a href="#contacto" className="site-btn justify-center">
-                      Solicitar consulta <span aria-hidden="true">↗</span>
+                    <a href="#servicios" className="home-text-link">
+                      Ver áreas de práctica <span aria-hidden="true">↓</span>
                     </a>
                   )}
-                  <a href="#servicios" className="home-text-link">
-                    Conozca nuestras áreas <span aria-hidden="true">↓</span>
-                  </a>
                 </div>
+                <p className="mt-3 text-sm text-slate">
+                  Cuéntenos su caso o llámenos al{" "}
+                  <a className="service-link" href={`tel:${CONTACT.phoneHref}`}>{CONTACT.phone}</a>.
+                </p>
               </Reveal>
 
               <Reveal delay={320}>
@@ -314,7 +367,14 @@ export default async function PublicHomePage({
                     >
                       {service.title}
                     </h3>
-                    <p className="site-body-sm mt-3 flex-1">{service.body}</p>
+                    <p className="site-body-sm mt-3">{service.body}</p>
+                    {service.hint ? (
+                      <p className="mt-3 flex-1 text-sm text-slate">
+                        <strong className="font-semibold text-petrol-soft">Cuándo acudir:</strong> {service.hint}
+                      </p>
+                    ) : (
+                      <div className="flex-1" />
+                    )}
                     <Link
                       href={`/servicios/${service.slug}`}
                       prefetch={false}
@@ -518,8 +578,8 @@ export default async function PublicHomePage({
               </div>
               <Reveal delay={140}>
                 <p className="site-body">
-                  Los profesionales de la firma, con el cargo que cada uno
-                  sostiene en el día a día.
+                  Un equipo que escucha su situación, explica las opciones con
+                  claridad y le acompaña en las decisiones importantes.
                 </p>
               </Reveal>
             </div>
@@ -547,7 +607,9 @@ export default async function PublicHomePage({
                       alt={`Fotografía de ${member.name}`}
                       width={member.width}
                       height={member.height}
-                      sizes="(min-width: 640px) 30vw, 90vw"
+                      sizes="(min-width: 1024px) 22vw, (min-width: 640px) 30vw, 90vw"
+                      loading="lazy"
+                      decoding="async"
                       className="portrait-img"
                     />
                   </figure>
@@ -604,7 +666,9 @@ export default async function PublicHomePage({
                       alt={`Logotipo de ${ally.name}`}
                       width={500}
                       height={302}
-                      sizes="(min-width: 640px) 45vw, 90vw"
+                      sizes="(min-width: 1024px) 34vw, (min-width: 640px) 45vw, 90vw"
+                      loading="lazy"
+                      decoding="async"
                       className="ally-mark-img"
                     />
                   </div>
@@ -651,9 +715,16 @@ export default async function PublicHomePage({
               Últimos análisis del despacho.
             </h2>
             {analysesResponse.items.length === 0 ? (
-              <p className="site-body mt-6 max-w-[52ch]">
-                Próximamente publicaremos análisis y criterios jurídicos.
-              </p>
+              <div className="mt-6 max-w-[58ch]">
+                <p className="site-body">
+                  Aún no hay análisis publicados. Cuando el despacho comparta criterios
+                  jurídicos, estarán disponibles en esta sección.
+                </p>
+                <p className="site-body-sm mt-3 text-slate">
+                  Si necesita orientación sobre un tema específico, puede{" "}
+                  <a href="#contacto" className="service-link">enviarnos su consulta</a>.
+                </p>
+              </div>
             ) : (
               <>
                 <div className="mt-8 grid gap-6 sm:grid-cols-2">
@@ -745,9 +816,9 @@ export default async function PublicHomePage({
                   </span>
                   <span className="mt-1.5 block text-slate">
                     Estado del sistema:{" "}
-                    <strong>
-                      {health.status === "ready" ? "Operativo" : "No disponible"}
-                    </strong>
+                    <strong>{health.status === "ready" ? "Operativo" : "En revisión"}</strong>
+                    {" · "}
+                    <Link href="/estado" className="service-link">Ver detalle</Link>
                   </span>
 
                   <div className="mt-6 overflow-hidden rounded-card border border-ivory-line">
@@ -759,23 +830,30 @@ export default async function PublicHomePage({
                       className="h-64 w-full border-0"
                     />
                   </div>
-                  <span className="mt-3 block text-slate">
-                    Correo electrónico: <strong>por confirmar</strong>. El sitio
-                    de la firma lo publica protegido y no puede leerse desde el
-                    código fuente.
+                  <a
+                    className="service-link mt-3 inline-block text-sm"
+                    href="https://www.openstreetmap.org/?mlat=4.603&mlon=-74.072#map=17/4.603/-74.072"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Cómo llegar <span aria-hidden="true">↗</span>
+                  </a>
+                  <span className="mt-1.5 block">
+                    <a
+                      className="text-petrol-soft underline decoration-gold decoration-1 underline-offset-4 hover:text-gold-deep"
+                      href={`mailto:${CONTACT.email}`}
+                    >
+                      {CONTACT.email}
+                    </a>
                   </span>
                 </address>
               </Reveal>
 
               <Reveal delay={260}>
                 <p className="site-note mt-7">
-                  <span className="pending-tag mr-3">Pendiente de revisión</span>
-                  El formulario <strong>envía su solicitud de verdad</strong> y
-                  solo confirma cuando el sistema la ha registrado. El aviso de
-                  privacidad está redactado con los datos que la firma publica,
-                  pero <strong>falta que el despacho lo revise y lo apruebe</strong>
-                  antes de publicar: están sin confirmar la razón social completa y
-                  el canal para ejercer los derechos.
+                  El formulario <strong>envía su solicitud de verdad</strong> y solo
+                  confirma cuando el sistema la ha registrado. Sus datos se tratan
+                  conforme al aviso de privacidad aprobado por el despacho.
                 </p>
               </Reveal>
             </div>
@@ -787,6 +865,7 @@ export default async function PublicHomePage({
         </section>
       </main>
 
+      <PublicMobileCta phone={CONTACT.phone} phoneHref={CONTACT.phoneHref} consultHref="#contacto" />
       <SiteFooter />
     </div>
   );

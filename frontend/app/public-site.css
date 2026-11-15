@@ -587,3 +587,15 @@ display:none}
   .public-home .home-location a span { margin-left: 4px; }
   .public-home .home-hero-signature { margin-top: 32px; }
 }
+
+/* Discreet mobile quick actions: visible only on small screens. */
+.public-mobile-cta{display:none}
+@media (max-width:767px){
+.public-mobile-cta{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:35;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px;border:1px solid var(--color-ivory-line);background:color-mix(in srgb, var(--color-institutional-dark) 94%, transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 12px 30px -18px #000}
+.public-mobile-cta-btn{padding:12px 10px;font-size:12px;gap:8px;width:100%}
+.public-home{padding-bottom:96px}
+}
+
+/* Skip link for keyboard and assistive technology users. */
+.skip-link{position:absolute;left:12px;top:12px;z-index:100;transform:translateY(-200%);background:var(--color-surface);color:var(--color-ink);border:2px solid var(--color-gold);padding:10px 14px;border-radius:6px}
+.skip-link:focus,.skip-link:focus-visible{transform:translateY(0)}

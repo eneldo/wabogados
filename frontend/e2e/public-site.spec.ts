@@ -107,7 +107,7 @@ test("homepage consultation, practice areas and firm links reach their sections"
 
   for (const [name, target] of [
     ["Solicitar consulta", "contacto"],
-    ["Conozca nuestras áreas", "servicios"],
+    ["Ver áreas de práctica", "servicios"],
     ["Conozca la firma", "firma"],
   ]) {
     await page.locator("#inicio").getByRole("link", { name: new RegExp(name) }).click();

@@ -1,5 +1,63 @@
 # Última sesión
 
+## 2026-11-15 — Ejecución Plan P0 mejora web pública (autorizado)
+
+- **Aplicación ejecutada localmente:** stack levantado con contenedores/imágenes existentes (`docker compose up -d postgres redis backend frontend clamav`, sin rebuild). Frontend `http://localhost:3000` y backend `/api/v1/health/ready` en **HTTP 200**; postgres/redis/clamav saludables. `evidence-worker` en reinicio (no bloquea la web pública; pendiente de revisión operativa).
+- **Plan P0 (1–3) en curso**, con registro en memoria antes de cada paso siguiente.
+  - **Paso 1 (confianza/legal/contacto): COMPLETADO** con datos aprobados por la firma (correo `amiabogado@hotmail.com`, razón social WABOGADOS, responsable William Andres Ruiz, canal Edificio Berna Carrera 9 No. 16-20 Oficina 206, Bogotá; confirmación explícita de retirar notas pendientes). Actualizados `frontend/app/(public)/page.tsx`, `frontend/components/public/contact-form.tsx`, `frontend/components/public/site-header.tsx`. Frontend validado (`typecheck` OK, `lint` 0 errores + warning previo portal) y **reconstruido/re desplegado**; verificado en portada sin "por confirmar"/"Pendiente de revisión" y con correo visible. Detalle en `memory/P0_PUBLIC_SITE_PLAN.md`.
+  - **Paso 2 (claridad/conversión del formulario): COMPLETADO** en `frontend/components/public/contact-form.tsx` (expectativa de respuesta y alternativa telefónica visibles, microcopia de privacidad, validaciones accesibles por campo con `aria-invalid`/`aria-describedby`, foco en primer error; contrato 201/sin borrado en fallo preservado). Frontend validado, reconstruido y redesplegado.
+  - **Paso 3 (prueba social sin inventar): COMPLETADO** en `frontend/app/(public)/page.tsx` (copy de equipo ajustado para confianza/cercanía sin inventar credenciales, años, casos ni reconocimientos; retirada nota "Pendiente" del equipo). Frontend validado, reconstruido y redesplegado.
+- Ajuste colateral mínimo: `frontend/components/admin/roles/role-form.tsx` para corregir error de lint `set-state-in-effect` (sin cambio funcional previsto). Cambios en árbol sin commit/push. **P0 (1–3) completado.**
+
+## 2026-11-15 (continuación) — Ejecución Plan P1, P2 y P3 mejora web pública (autorizado)
+
+- **P1 (4–7) completado:** jerarquía/CTA y orientación "cuándo acudir" en servicios, estado del sistema con enlace a `/estado`, CTA móvil discreto Llamar/Consultar, y estado vacío de Criterio Legal más claro.
+- **P2 (8–10) completado:** `frontend/lib/site.ts`, metadatos/OG/Twitter/canonical y JSON-LD verificado, `robots.ts`/`sitemap.ts`, optimización segura de imágenes no críticas y accesibilidad básica (skip link, `main#contenido-principal`).
+- **P3 (11–13) completado:**
+  - **Paso 11:** embudo estimado en `/admin/estadisticas-web` (portada → áreas → clics teléfono → solicitudes registradas) con interpretación agregada; `docs/ESTADISTICAS_WEB.md` actualizado.
+  - **Paso 12:** NAP unificado con `SITE_CONTACT` en footer público y enlace "Cómo llegar" en contacto.
+  - **Paso 13:** prueba pública ajustada al copy vigente y documentación actualizada (`docs/IDENTIDAD_WEB_PUBLICA.md`); **Playwright `--project=public` 19/19 aprobadas**.
+- Cada paso registrado en memoria antes de continuar. Frontend validado (`typecheck` OK, `lint` 0 errores + warning previo portal), reconstruido y redesplegado según pasos. **P0–P3 completados.** Cambios en árbol sin commit/push. Detalle en `memory/P0_PUBLIC_SITE_PLAN.md`.
+
+## 2026-11-11 (continuación) — Módulos Usuarios y Roles separados (opción B)
+
+- Separados en el administrador los módulos **Usuarios** (`/admin/usuarios`,
+  `users:read`) y **Roles** (`/admin/roles`, `roles:read`). **Seguridad**
+  (`/admin/seguridad`, `audit_logs:read`) queda enfocada en auditoría y redirige
+  `?vista=usuarios|roles` a los nuevos módulos.
+- **Usuarios**: crear, editar, desactivar/reactivar cuentas y asignar/revocar roles
+  (reutiliza componentes y acciones de seguridad, con revalidación en
+  `/admin/usuarios`). Permite asignar roles como administrador, abogado, cliente,
+  asistente u otros existentes.
+- **Roles (CRUD completo)**: crear, editar (nombre, descripción, permisos) y
+  eliminar roles; asignación de permisos agrupados por recurso. Eliminación solo si
+  el rol no está asignado a usuarios. Gestión protegida por `roles:manage` y
+  `permissions:read`.
+- Backend: `RoleCreate`/`RoleUpdate` en `backend/app/schemas/identity.py`; métodos
+  `get_role`, `create_role`, `update_role`, `delete_role`, validación de permisos
+  y permisos en `backend/app/services/identity.py`; endpoints
+  `POST/PATCH/DELETE /api/v1/admin/roles` en `backend/app/api/v1/admin.py`.
+- Frontend: navegación e iconos (`frontend/lib/admin-nav.ts`,
+  `frontend/components/admin/icons.tsx`), páginas `admin/usuarios` y `admin/roles`,
+  acciones/componentes de roles (`frontend/features/roles/*`,
+  `frontend/components/admin/roles/*`), auditoría simplificada en
+  `frontend/app/(admin)/admin/seguridad/page.tsx`.
+- **Verificación**: `npm run typecheck` frontend OK; `py_compile` de archivos
+  backend modificados OK. Pruebas funcionales API (token admin local): roles listados
+  (abogado, administrador, asistente, cliente), permisos disponibles,
+  `POST/PATCH/DELETE /api/v1/admin/roles` probados con rol de prueba (201/200/204)
+  y `GET /api/v1/admin/users` OK. Frontend reconstruido; rutas `/admin/usuarios`,
+  `/admin/roles`, `/admin/seguridad` presentes y protegidas (307 a login sin sesión).
+- **Despliegue local aplicado sin rebuild completo de backend**: se copiaron los 3
+  archivos backend modificados al contenedor `backend` en ejecución y se reinició
+  (saludable). No se reconstruyó la imagen completa porque el `backend/Dockerfile`
+  del árbol tiene cambios previos no validados/rotos (multimedia/IA); el build
+  completo fallaría o mezclaría pendientes. Frontend sí reconstruido con
+  `docker compose up -d --build --no-deps frontend`. Para persistir en imagen,
+  usar build revisado/scoped que incluya estos cambios.
+- Cambios sin commit ni push. Pendientes previos de multimedia/IA/Dockerfile/S3
+  siguen sin resolver.
+
 ## Publicación autorizada por el usuario — 2026-11-11
 
 - El usuario solicitó commit y push de la entrega verificada: portada, servicios,

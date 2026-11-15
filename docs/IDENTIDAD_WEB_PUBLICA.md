@@ -97,3 +97,26 @@ logo, su proporción y límites dentro de la cabecera, los colores calculados,
 el ancho de página, menú, teclado, privacidad y enlace al acceso privado.
 Incluyen 320/390/768/820/900/901/1024/1440/1920/2560 px y generan capturas en
 `.tmp/public-brand-review/`. No envían consultas ni modifican datos de la firma.
+
+## Mejoras P0–P3 (2026-11-15)
+
+- **Contacto y legal (datos aprobados):** correo `amiabogado@hotmail.com`, razón
+  social WABOGADOS, responsable William Andres Ruiz y canal de derechos en
+  Edificio Berna Carrera 9 No. 16-20 Oficina 206, Bogotá. Aviso de privacidad y
+  notas públicas actualizados; NAP unificado en `frontend/lib/site.ts`.
+- **Conversión y UX:** formulario con expectativa de respuesta, alternativa
+  telefónica, microcopia de privacidad y validaciones accesibles
+  (`aria-invalid`/`aria-describedby`); contrato preservado (éxito solo con 201,
+  sin borrar datos en fallo). Hero/CTA clarificados, orientación "Cuándo acudir"
+  en áreas, CTA móvil discreto (Llamar/Consultar), estado del sistema con enlace
+  a `/estado` y estado vacío de Criterio Legal más útil.
+- **SEO/compartibilidad:** metadatos base y por página, canonical/OG/Twitter,
+  JSON-LD verificado (Organization/LegalService/LocalBusiness/WebSite),
+  `robots.ts` y `sitemap.ts`. Definir `NEXT_PUBLIC_SITE_URL` en producción para
+  URLs absolutas.
+- **Rendimiento y accesibilidad:** imágenes no críticas con `sizes`/lazy,
+  skip link y `main#contenido-principal`.
+- **Analítica:** embudo estimado en `/admin/estadisticas-web` (portada → áreas →
+  clics en teléfono → solicitudes registradas) con interpretación agregada.
+- **Calidad:** pruebas públicas Playwright (`--project=public`) ajustadas al copy
+  vigente y verificadas (19/19). Detalle por paso en `memory/P0_PUBLIC_SITE_PLAN.md`.

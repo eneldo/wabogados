@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { DrawRule } from "./reveal";
 import { BrandLogo } from "@/components/brand-logo";
+import { SITE_CONTACT } from "@/lib/site";
 
 /**
  * Sticky header with the mobile menu, and three things that only make sense
@@ -41,14 +42,6 @@ const LINKS = [
   { href: "#actualidad", label: "Actualidad" },
   { href: "#contacto", label: "Contacto" },
 ];
-
-/** As published by the firm on wabogados.co. */
-const FOOTER_CONTACT = {
-  address: "Cra. 9 # 16-20, oficina 206, edificio Berna, Bogotá D.C.",
-  phone: "+57 312 469 9617",
-  phoneHref: "+573124699617",
-  schedule: "Lunes a viernes, 8:00 a. m. a 7:00 p. m.",
-};
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
@@ -138,6 +131,7 @@ export function SiteHeader({ homePage = true }: { homePage?: boolean }) {
   */
   return (
     <>
+      <a href="#contenido-principal" className="skip-link">Saltar al contenido principal</a>
       <header className="site-header" data-condensed={condensed}>
         <div className="site-progress" aria-hidden="true" />
         <div className="wrap site-nav">
@@ -221,14 +215,20 @@ export function SiteFooter({ homePage = true }: { homePage?: boolean }) {
           </Link>
 
           <address className="text-xs not-italic leading-relaxed text-ivory/60">
-            <span className="block">{FOOTER_CONTACT.address}</span>
+            <span className="block">{SITE_CONTACT.address}</span>
             <a
               className="mt-1 block transition-colors hover:text-gold"
-              href={`tel:${FOOTER_CONTACT.phoneHref}`}
+              href={`tel:${SITE_CONTACT.phoneHref}`}
             >
-              {FOOTER_CONTACT.phone}
+              {SITE_CONTACT.phone}
             </a>
-            <span className="mt-1 block">{FOOTER_CONTACT.schedule}</span>
+            <a
+              className="mt-1 block transition-colors hover:text-gold"
+              href={`mailto:${SITE_CONTACT.email}`}
+            >
+              {SITE_CONTACT.email}
+            </a>
+            <span className="mt-1 block">{SITE_CONTACT.schedule}</span>
           </address>
 
           <div className="flex flex-col items-start gap-4 lg:items-end">
