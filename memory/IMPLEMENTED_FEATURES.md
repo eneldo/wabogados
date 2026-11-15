@@ -1,5 +1,14 @@
 # IMPLEMENTED FEATURES
 
+## 2026-11-15 — Contraseñas desde Usuarios
+
+- Restablecimiento administrativo con confirmación, permiso dedicado,
+  protección de cuentas y auditoría; revocación de refrescos y JWT por versión.
+- Migración `fe5f60718293`; despliegue selectivo con Usuarios/Roles persistidos.
+- 895 tests backend (85,56 %), Ruff/mypy, migración reversible y frontend build/
+  typecheck; 2 E2E aislados y 19 públicos aprobados. Sin modificar claves reales.
+- Detalle `../docs/RESTABLECIMIENTO_CONTRASENAS.md`. Recuperación por correo no incluida.
+
 ## Entregas locales verificadas — 2026-11-11
 
 - Nueva portada editorial responsive con marca y datos del despacho conservados.

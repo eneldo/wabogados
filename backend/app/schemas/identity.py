@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationInfo, field_validator
 
 from app.models import Role
 from app.schemas.auth import UserCreate, UserResponse, UserUpdate
@@ -39,6 +39,18 @@ class PermissionResponse(BaseModel):
 
 class RoleAssignmentRequest(BaseModel):
     role_name: str = Field(min_length=2, max_length=100)
+
+
+class RoleCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+    permission_names: list[str] = Field(default_factory=list)
+
+
+class RoleUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+    permission_names: list[str] | None = None
 
 
 class SessionInfo(BaseModel):
@@ -90,13 +102,35 @@ class UserUpdateAdmin(UserUpdate):
     pass
 
 
+class PasswordResetRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    new_password: SecretStr = Field(min_length=8, max_length=128)
+    confirm_password: SecretStr = Field(min_length=8, max_length=128)
+
+    @field_validator("confirm_password")
+    @classmethod
+    def passwords_match(cls, value: SecretStr, info: "ValidationInfo") -> SecretStr:
+        password = info.data.get("new_password")
+        if password is not None and value.get_secret_value() != password.get_secret_value():
+            raise ValueError("Las contraseñas no coinciden")
+        return value
+
+
+class PasswordResetResponse(BaseModel):
+    message: str
+    revoked_sessions: int
+
+
 __all__ = [
     "AuditLogResponse",
     "PaginatedAuditLogs",
     "PaginatedUsers",
     "PermissionResponse",
     "RoleAssignmentRequest",
+    "RoleCreate",
     "RoleResponse",
+    "RoleUpdate",
     "SessionInfo",
     "UserCreateAdmin",
     "UserUpdateAdmin",

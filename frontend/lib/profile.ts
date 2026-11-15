@@ -18,6 +18,7 @@ export type Profile = {
   unread: number;
   roles: string[];
   permissions: string[];
+  isSuperuser: boolean;
   isClient: boolean;
   canSeeEvidenceManager: boolean;
 };
@@ -35,6 +36,7 @@ type MeResponse = {
   full_name?: string;
   roles?: string[];
   permissions?: string[];
+  is_superuser?: boolean;
 };
 
 /**
@@ -73,6 +75,7 @@ export async function getProfile(): Promise<Profile | null> {
     unread,
     roles,
     permissions,
+    isSuperuser: me.is_superuser === true,
     isClient: isClientOnly(roles),
     // The evidence manager is staff-only. The permission list is the check, not
     // the role name, so a custom role that may upload still gets in.

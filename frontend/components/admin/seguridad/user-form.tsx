@@ -91,12 +91,12 @@ export function UserForm({
             </FormField>
 
             <FormField
-              label="Contraseña"
+              label="Contraseña inicial"
               name="password"
               idPrefix="crear-usuario"
               required
               error={state.errors?.password}
-              hint="Mínimo 8 caracteres. Se guarda cifrada: nadie, aquí ni en el backend, la ve en claro."
+              hint="Entre 8 y 128 caracteres. Se almacena como hash seguro, no como texto."
             >
               {(props) => (
                 <TextInput {...props} type="password" required minLength={8} maxLength={128} autoComplete="new-password" />

@@ -4,6 +4,16 @@
 
 Esta sección y `session_summary.md` prevalecen sobre las notas históricas de abajo.
 
+- **Contraseñas desde Usuarios (2026-11-15):** acción **Restablecer contraseña**
+  activa localmente, permiso dedicado, confirmación, revocación de refrescos/JWT
+  anteriores y auditoría atómica. No permite auto-reset ni acceso de un
+  no-superusuario a un superusuario. No se modificaron claves reales.
+  **895 tests backend, 85,56 %**, Ruff/mypy, migración reversible, frontend build/
+  typecheck, 2 E2E aislados y 19 públicos aprobados; lint sin errores (warning previo).
+  Guía `docs/RESTABLECIMIENTO_CONTRASENAS.md`; ADR-065. Recuperación por correo aplazada.
+  Commit/push de Usuarios/Roles y esta entrega autorizados por el usuario;
+  consultar Git para la referencia y el resultado final de publicación.
+
 - **Portada, imagen de Justicia (2026-11-15):** el hero muestra ahora
   `Logo de Justicia.png` mediante un derivado público WebP sin pérdida,
   sin alterar el original ni el logo de cabecera/pie. Frontend reconstruido y
@@ -38,8 +48,9 @@ Esta sección y `session_summary.md` prevalecen sobre las notas históricas de a
   alta/edición/desactivación/reactivación y asignación de roles. Roles: CRUD con
   gestión de permisos (`roles:manage`) vía `POST/PATCH/DELETE /api/v1/admin/roles`
   (backend) y UI con selector de permisos. Verificado por API y rutas frontend.
-  Backend actualizado en contenedor por hot-patch de archivos (sin rebuild completo
-  por Dockerfile/pendientes no validados); frontend reconstruido. Cambios sin commit.
+  Backend ya persistido en imagen selectiva reproducible con el reset de
+  contraseña (2026-11-15); ya no depende del hot-patch. Publicación autorizada;
+  consultar Git para el estado final.
 - Portada editorial renovada, móvil/escritorio, con identidad azul/gris/rojo,
   logo y datos reales conservados. Cada una de las doce tarjetas abre su propia
   página `/servicios/[slug]` con consulta preseleccionada. Iconos SVG asignados
@@ -52,9 +63,9 @@ Esta sección y `session_summary.md` prevalecen sobre las notas históricas de a
   solicitudes aceptadas y series por día/mes. Sin cookies, fingerprint, IP ni
   contenido de formularios en la analítica; DNT/GPC respetados. No son personas
   exactas: recargas/pestañas nuevas pueden contar de nuevo. Datos desde activación.
-- Migración local: `fd4e5f607182`. Agregados 400 días; digests efímeros 48 horas
+- Migración local: `fe5f60718293`. Analítica: agregados 400 días; digests efímeros 48 horas
   con limpieza horaria. `WEBSITE_ANALYTICS_ENABLED=true` en backend/frontend.
-- Validado: **881 pruebas backend, 85,77 %**, ruff/mypy y migración reversible,
+- Validación anterior de analítica: **881 pruebas backend, 85,77 %**,
   sobre release aislada `0d91b47` + analítica; **25 pruebas Playwright** sobre una
   instalación efímera separada, incluido el panel y el ingreso real de eventos.
   Frontend build/TypeScript correctos; ESLint 0 errores y 1 warning previo en
@@ -63,15 +74,15 @@ Esta sección y `session_summary.md` prevalecen sobre las notas históricas de a
   eliminados al terminar, credencial temporal eliminada; no se importaron cifras
   de demostración a la aplicación local.
 - Imagen activa: `wabogados_v1_master-backend:latest`, también etiquetada
-  `wabogados-website-analytics:local`. Imagen anterior conservada como
-  `wabogados-backend-before-website-analytics:local`.
-- Snapshot revisado: `.tmp/scoped-backend-psproyq6/backend`; manifest/hashes en
+  `wabogados-password-reset:local`. Imagen previa:
+  `wabogados-backend-before-password-reset:local` (sin hot-patch antiguo de Roles).
+- Snapshot revisado: `.tmp/scoped-backend-ys8oavur/backend`; manifest/hashes en
   su directorio padre. Generador: `execution/prepare_scoped_backend.py`.
 - Respaldo PostgreSQL previo validado, 0600:
-  `.tmp/website-analytics-predeploy-20261111T233549Z.dump`.
+  `.tmp/password-reset-predeploy-20261115.dump` (`pg_restore --list`).
 - **No reconstruir el backend del árbol completo todavía:** conserva cambios
   anteriores de Dockerfile/multimedia/IA sin validar, excluidos del despliegue
-  selectivo. Los 881 tests no certifican esos pendientes. No borrar ni revertir
+  selectivo. Los 895 tests no certifican esos pendientes. No borrar ni revertir
   trabajo existente. Hay cambios modificados y nuevos sin commit/push.
 - Referencias: `docs/IDENTIDAD_WEB_PUBLICA.md`, `docs/ESTADISTICAS_WEB.md`,
   `session_summary.md`, ADR-064 en `DECISIONS.md`, aprendizajes en `learnings.md`.

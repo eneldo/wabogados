@@ -11,9 +11,13 @@ from app.schemas.identity import (
     AuditLogResponse,
     PaginatedAuditLogs,
     PaginatedUsers,
+    PasswordResetRequest,
+    PasswordResetResponse,
     PermissionResponse,
     RoleAssignmentRequest,
+    RoleCreate,
     RoleResponse,
+    RoleUpdate,
     UserCreateAdmin,
     UserUpdateAdmin,
 )
@@ -68,9 +72,7 @@ async def get_user(
 ) -> UserResponse:
     user = await UserAdminService(session).get_user(user_id)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
     return UserResponse.model_validate(user)
 
 
@@ -78,8 +80,12 @@ async def get_user(
 async def create_user(
     payload: UserCreateAdmin,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _: Annotated[User, Depends(require_permission("users:create"))],
+    actor: Annotated[User, Depends(require_permission("users:create"))],
 ) -> UserResponse:
+    if payload.is_superuser and not actor.is_superuser:
+        raise HTTPException(
+            status_code=403, detail="Solo un superusuario puede crear otro superusuario"
+        )
     service = UserAdminService(session)
     try:
         user = await service.create_user(payload)
@@ -101,17 +107,48 @@ async def update_user(
     user_id: UUID,
     payload: UserUpdateAdmin,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _: Annotated[User, Depends(require_permission("users:update"))],
+    actor: Annotated[User, Depends(require_permission("users:update"))],
 ) -> UserResponse:
     service = UserAdminService(session)
-    user = await service.get_user(user_id)
+    user = await service.get_user(user_id, lock=True)
     if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    if not actor.is_superuser and (user.is_superuser or payload.is_superuser is True):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
+            status_code=403, detail="Solo un superusuario puede modificar superusuarios"
         )
     updated = await service.update_user(user, payload)
     await session.commit()
     return UserResponse.model_validate(updated)
+
+
+@router.post("/users/{user_id}/reset-password", response_model=PasswordResetResponse)
+async def reset_user_password(
+    user_id: UUID,
+    payload: PasswordResetRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    actor: Annotated[User, Depends(require_permission("users:reset_password"))],
+) -> PasswordResetResponse:
+    if user_id == actor.id:
+        raise HTTPException(
+            status_code=400, detail="No puede restablecer su propia contraseña desde esta acción"
+        )
+    service = UserAdminService(session)
+    user = await service.get_user(user_id, lock=True)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.is_superuser and not actor.is_superuser:
+        raise HTTPException(
+            status_code=403, detail="Solo un superusuario puede restablecer a otro superusuario"
+        )
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="No se puede restablecer una cuenta inactiva")
+    revoked = await service.reset_password(user, payload.new_password.get_secret_value(), actor.id)
+    await session.commit()
+    return PasswordResetResponse(
+        message="Contraseña restablecida. Las sesiones anteriores han sido invalidadas.",
+        revoked_sessions=revoked,
+    )
 
 
 @router.delete("/users/{user_id}", response_model=UserResponse)
@@ -123,9 +160,7 @@ async def deactivate_user(
     service = UserAdminService(session)
     user = await service.get_user(user_id)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
     if user.id == actor.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -146,9 +181,7 @@ async def assign_role(
     service = UserAdminService(session)
     user = await service.get_user(user_id)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
     try:
         updated = await service.assign_role(user, payload.role_name)
         await session.commit()
@@ -167,9 +200,7 @@ async def revoke_role(
     service = UserAdminService(session)
     user = await service.get_user(user_id)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
     try:
         updated = await service.revoke_role(user, role_name)
         await session.commit()
@@ -194,6 +225,79 @@ async def list_permissions(
 ) -> list[PermissionResponse]:
     permissions = await UserAdminService(session).list_permissions()
     return [PermissionResponse.model_validate(item) for item in permissions]
+
+
+@router.post(
+    "/roles",
+    response_model=RoleResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_role(
+    payload: RoleCreate,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[User, Depends(require_permission("roles:manage"))],
+) -> RoleResponse:
+    service = UserAdminService(session)
+    try:
+        role = await service.create_role(
+            name=payload.name.strip(),
+            description=(payload.description.strip() if payload.description else None),
+            permission_names=payload.permission_names,
+        )
+        await session.commit()
+        await session.refresh(role)
+    except IdentityError as error:
+        raise _handle_identity_error(error) from error
+    return RoleResponse.from_role(role)
+
+
+@router.patch("/roles/{role_id}", response_model=RoleResponse)
+async def update_role(
+    role_id: UUID,
+    payload: RoleUpdate,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[User, Depends(require_permission("roles:manage"))],
+) -> RoleResponse:
+    service = UserAdminService(session)
+    role = await service.get_role(role_id)
+    if role is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rol no encontrado")
+    data = payload.model_dump(exclude_unset=True)
+    try:
+        updated = await service.update_role(
+            role,
+            name=data["name"].strip() if isinstance(data.get("name"), str) else data.get("name"),
+            description=(
+                data["description"].strip()
+                if isinstance(data.get("description"), str)
+                else data.get("description")
+            )
+            if "description" in data
+            else None,
+            permission_names=data.get("permission_names") if "permission_names" in data else None,
+        )
+        await session.commit()
+        await session.refresh(updated)
+    except IdentityError as error:
+        raise _handle_identity_error(error) from error
+    return RoleResponse.from_role(updated)
+
+
+@router.delete("/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_role(
+    role_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[User, Depends(require_permission("roles:manage"))],
+) -> None:
+    service = UserAdminService(session)
+    role = await service.get_role(role_id)
+    if role is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rol no encontrado")
+    try:
+        await service.delete_role(role)
+        await session.commit()
+    except IdentityError as error:
+        raise _handle_identity_error(error) from error
 
 
 @router.get("/audit-logs", response_model=PaginatedAuditLogs)

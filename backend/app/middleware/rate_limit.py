@@ -31,6 +31,7 @@ CONTACT_PATH_PREFIXES = ("/api/v1/consultations",)
 #: Each profile names the two settings attributes holding its budget.
 LIMIT_PROFILES: dict[str, tuple[str, str]] = {
     "auth": ("auth_rate_limit_requests", "auth_rate_limit_window_seconds"),
+    "password_reset": ("auth_rate_limit_requests", "auth_rate_limit_window_seconds"),
     "message": ("message_rate_limit_requests", "message_rate_limit_window_seconds"),
     "contact": ("contact_rate_limit_requests", "contact_rate_limit_window_seconds"),
     "default": ("rate_limit_requests", "rate_limit_window_seconds"),
@@ -109,6 +110,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def _profile_for(self, request: Request) -> str:
         path = request.url.path
+        if (
+            request.method == "POST"
+            and path.startswith("/api/v1/admin/users/")
+            and path.endswith("/reset-password")
+        ):
+            return "password_reset"
         if path == "/api/v1/public/analytics/events":
             return "analytics"
         if path.startswith(AUTH_PATH_PREFIXES):

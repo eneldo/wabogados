@@ -20,10 +20,14 @@ IDENTITY_PERMISSIONS: tuple[PermissionDefinition, ...] = (
     PermissionDefinition("users:read", "users", "read", "Consultar usuarios"),
     PermissionDefinition("users:create", "users", "create", "Crear usuarios"),
     PermissionDefinition("users:update", "users", "update", "Actualizar usuarios"),
-    PermissionDefinition("users:delete", "users", "delete", "Desactivar usuarios"),
     PermissionDefinition(
-        "users:assign_roles", "users", "assign_roles", "Asignar y revocar roles"
+        "users:reset_password",
+        "users",
+        "reset_password",
+        "Restablecer contraseñas de otros usuarios",
     ),
+    PermissionDefinition("users:delete", "users", "delete", "Desactivar usuarios"),
+    PermissionDefinition("users:assign_roles", "users", "assign_roles", "Asignar y revocar roles"),
     PermissionDefinition("roles:read", "roles", "read", "Consultar roles"),
     PermissionDefinition("roles:manage", "roles", "manage", "Crear y modificar roles"),
     PermissionDefinition(
@@ -56,9 +60,7 @@ ROLE_DEFINITIONS: dict[str, str] = {
 }
 
 CASE_PERMISSIONS: tuple[PermissionDefinition, ...] = (
-    PermissionDefinition(
-        "cases:read_all", "cases", "read_all", "Consultar todos los expedientes"
-    ),
+    PermissionDefinition("cases:read_all", "cases", "read_all", "Consultar todos los expedientes"),
     PermissionDefinition(
         "cases:read_assigned",
         "cases",
@@ -74,9 +76,7 @@ CASE_PERMISSIONS: tuple[PermissionDefinition, ...] = (
     PermissionDefinition("cases:create", "cases", "create", "Abrir expedientes"),
     PermissionDefinition("cases:update", "cases", "update", "Actualizar expedientes"),
     PermissionDefinition("cases:close", "cases", "close", "Cerrar y archivar expedientes"),
-    PermissionDefinition(
-        "cases:assign", "cases", "assign", "Asignar abogados y partes"
-    ),
+    PermissionDefinition("cases:assign", "cases", "assign", "Asignar abogados y partes"),
 )
 
 ACTION_PERMISSIONS: tuple[PermissionDefinition, ...] = (
@@ -246,12 +246,8 @@ ADMINISTRATOR_RETENTION_PERMISSIONS: tuple[str, ...] = (
 # section 32 (`evidencias.view` -> `evidences:view`), consistent with `cases:`,
 # `documents:` and `actions:`.
 EVIDENCE_PERMISSIONS: tuple[PermissionDefinition, ...] = (
-    PermissionDefinition(
-        "evidences:view", "evidences", "view", "Consultar evidencias"
-    ),
-    PermissionDefinition(
-        "evidences:create", "evidences", "create", "Registrar una evidencia"
-    ),
+    PermissionDefinition("evidences:view", "evidences", "view", "Consultar evidencias"),
+    PermissionDefinition("evidences:create", "evidences", "create", "Registrar una evidencia"),
     PermissionDefinition(
         "evidences:upload", "evidences", "upload", "Cargar el archivo original de una evidencia"
     ),
@@ -285,9 +281,7 @@ EVIDENCE_PERMISSIONS: tuple[PermissionDefinition, ...] = (
         "classify",
         "Clasificar y etiquetar una evidencia",
     ),
-    PermissionDefinition(
-        "evidences:archive", "evidences", "archive", "Archivar una evidencia"
-    ),
+    PermissionDefinition("evidences:archive", "evidences", "archive", "Archivar una evidencia"),
     PermissionDefinition(
         "evidences:audit",
         "evidences",
@@ -350,9 +344,7 @@ MESSAGE_PERMISSIONS: tuple[PermissionDefinition, ...] = (
         "create_conversation",
         "Abrir una conversación",
     ),
-    PermissionDefinition(
-        "messages:attach", "messages", "attach", "Adjuntar archivos a un mensaje"
-    ),
+    PermissionDefinition("messages:attach", "messages", "attach", "Adjuntar archivos a un mensaje"),
     PermissionDefinition(
         "messages:archive",
         "messages",
@@ -377,15 +369,11 @@ MESSAGE_PERMISSIONS: tuple[PermissionDefinition, ...] = (
 )
 
 SETTINGS_PERMISSIONS: tuple[PermissionDefinition, ...] = (
-    PermissionDefinition(
-        "settings:read", "settings", "read", "Consultar los ajustes del sistema"
-    ),
+    PermissionDefinition("settings:read", "settings", "read", "Consultar los ajustes del sistema"),
     PermissionDefinition(
         "settings:write", "settings", "write", "Modificar los ajustes del sistema"
     ),
-    PermissionDefinition(
-        "metrics:read", "metrics", "read", "Consultar las métricas de operación"
-    ),
+    PermissionDefinition("metrics:read", "metrics", "read", "Consultar las métricas de operación"),
 )
 
 
@@ -393,9 +381,7 @@ SETTINGS_PERMISSIONS: tuple[PermissionDefinition, ...] = (
 # permission gates access to the aggregate, not to new data. Every role gets it:
 # the figures differ by scope, not by whether the endpoint is reachable.
 DASHBOARD_PERMISSIONS: tuple[PermissionDefinition, ...] = (
-    PermissionDefinition(
-        "dashboard:read", "dashboard", "read", "Consultar el panel propio"
-    ),
+    PermissionDefinition("dashboard:read", "dashboard", "read", "Consultar el panel propio"),
 )
 
 
@@ -471,18 +457,12 @@ STAFF_CONSULTATION_PERMISSIONS: tuple[str, ...] = (
 # profile may catalogue material without being allowed to stream it to a
 # browser, which is the difference between an archive and a distribution channel.
 MEDIA_PERMISSIONS: tuple[PermissionDefinition, ...] = (
-    PermissionDefinition(
-        "media:read", "media", "read", "Consultar la biblioteca multimedia"
-    ),
+    PermissionDefinition("media:read", "media", "read", "Consultar la biblioteca multimedia"),
     PermissionDefinition(
         "media:create", "media", "create", "Registrar un recurso en la biblioteca"
     ),
-    PermissionDefinition(
-        "media:upload", "media", "upload", "Cargar el archivo de un recurso"
-    ),
-    PermissionDefinition(
-        "media:update", "media", "update", "Editar los datos de un recurso"
-    ),
+    PermissionDefinition("media:upload", "media", "upload", "Cargar el archivo de un recurso"),
+    PermissionDefinition("media:update", "media", "update", "Editar los datos de un recurso"),
     PermissionDefinition(
         "media:download", "media", "download", "Descargar o reproducir un recurso"
     ),
@@ -519,22 +499,12 @@ ADMINISTRATOR_MEDIA_PERMISSIONS: tuple[str, ...] = ("media:delete",)
 # everywhere else in the project.
 BILLING_PERMISSIONS: tuple[PermissionDefinition, ...] = (
     PermissionDefinition("invoices:read", "invoices", "read", "Consultar facturas"),
-    PermissionDefinition(
-        "invoices:create", "invoices", "create", "Registrar una factura"
-    ),
+    PermissionDefinition("invoices:create", "invoices", "create", "Registrar una factura"),
     PermissionDefinition("invoices:update", "invoices", "update", "Editar una factura"),
-    PermissionDefinition(
-        "invoices:issue", "invoices", "issue", "Emitir una factura al cliente"
-    ),
-    PermissionDefinition(
-        "invoices:void", "invoices", "void", "Anular una factura emitida"
-    ),
-    PermissionDefinition(
-        "payments:read", "payments", "read", "Consultar pagos registrados"
-    ),
-    PermissionDefinition(
-        "payments:create", "payments", "create", "Registrar un pago recibido"
-    ),
+    PermissionDefinition("invoices:issue", "invoices", "issue", "Emitir una factura al cliente"),
+    PermissionDefinition("invoices:void", "invoices", "void", "Anular una factura emitida"),
+    PermissionDefinition("payments:read", "payments", "read", "Consultar pagos registrados"),
+    PermissionDefinition("payments:create", "payments", "create", "Registrar un pago recibido"),
 )
 
 #: Drafting an invoice, recording a payment and reading the ledger is the daily work
@@ -562,12 +532,8 @@ ADMINISTRATOR_BILLING_PERMISSIONS: tuple[str, ...] = (
 # reads. A generate permission does not exist because there is nothing behind it, and
 # inventing one would be a permission for a feature that answers with fiction.
 AI_PERMISSIONS: tuple[PermissionDefinition, ...] = (
-    PermissionDefinition(
-        "ai:search", "ai", "search", "Buscar en el material de la firma"
-    ),
-    PermissionDefinition(
-        "ai:summarize", "ai", "summarize", "Resumir un documento o expediente"
-    ),
+    PermissionDefinition("ai:search", "ai", "search", "Buscar en el material de la firma"),
+    PermissionDefinition("ai:summarize", "ai", "summarize", "Resumir un documento o expediente"),
 )
 
 #: Reading the index is as safe as reading the modules it covers: every hit is a
@@ -589,7 +555,9 @@ STAFF_ANALYSES_WRITE_PERMISSIONS: tuple[str, ...] = (
 
 WEBSITE_ANALYTICS_PERMISSIONS: tuple[PermissionDefinition, ...] = (
     PermissionDefinition(
-        "website_analytics:read", "website_analytics", "read",
+        "website_analytics:read",
+        "website_analytics",
+        "read",
         "Consultar estadísticas de la web pública",
     ),
 )

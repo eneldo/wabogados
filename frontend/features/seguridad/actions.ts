@@ -25,6 +25,44 @@ function text(form: FormData, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function secret(form: FormData, key: string): string {
+  const value = form.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+export async function resetUserPassword(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const userId = text(form, "user_id");
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+    return { status: "error", message: "No se sabe qué usuario modificar." };
+  }
+  const password = secret(form, "new_password");
+  const confirmation = secret(form, "confirm_password");
+  const errors: Record<string, string> = {};
+  if (Array.from(password).length < 8 || Array.from(password).length > 128) {
+    errors.new_password = "Use entre 8 y 128 caracteres.";
+  }
+  if (password !== confirmation) errors.confirm_password = "Las contraseñas no coinciden.";
+  if (Object.keys(errors).length) {
+    return { status: "error", message: "Revise los campos marcados.", errors };
+  }
+  try {
+    await apiFetch(`${USERS}/${userId}/reset-password`, {
+      method: "POST",
+      body: { new_password: password, confirm_password: confirmation },
+    });
+    revalidatePath("/admin/usuarios");
+    return { status: "ok", message: "Contraseña restablecida. Las sesiones anteriores han sido invalidadas." };
+  } catch (error) {
+    // Never put credentials or an unknown exception's message into action state.
+    return error instanceof ApiRequestError
+      ? { status: "error", ...describe(error) }
+      : { status: "error", message: "No fue posible restablecer la contraseña. Intente de nuevo." };
+  }
+}
+
 function optional(form: FormData, key: string): string | undefined {
   const value = text(form, key);
   return value === "" ? undefined : value;
@@ -86,13 +124,14 @@ export async function createUser(
       body: {
         email: text(form, "email"),
         full_name: optional(form, "full_name") ?? null,
-        password: text(form, "password"),
+        password: secret(form, "password"),
         is_superuser: form.get("is_superuser") === "on",
         role_names: list(form, "role_names"),
       },
     });
 
     revalidatePath("/admin/seguridad");
+    revalidatePath("/admin/usuarios");
     return {
       status: "ok",
       message: `Usuario «${created.email}» dado de alta. Ya puede iniciar sesión.`,
@@ -128,6 +167,7 @@ export async function updateUser(
     });
 
     revalidatePath("/admin/seguridad");
+    revalidatePath("/admin/usuarios");
     return {
       status: "ok",
       message: `Cambios guardados en «${updated.email}».`,
@@ -149,6 +189,7 @@ export async function deactivateUser(
   try {
     await apiFetch<AdminUserRecord>(`${USERS}/${userId}`, { method: "DELETE" });
     revalidatePath("/admin/seguridad");
+    revalidatePath("/admin/usuarios");
     return {
       status: "ok",
       message: "Usuario desactivado. Su historial se conserva.",
@@ -173,6 +214,7 @@ export async function reactivateUser(
       body: { is_active: true },
     });
     revalidatePath("/admin/seguridad");
+    revalidatePath("/admin/usuarios");
     return { status: "ok", message: "Cuenta reactivada. Vuelve a poder iniciar sesión." };
   } catch (error) {
     return { status: "error", ...describe(error) };
@@ -218,6 +260,8 @@ export async function setUserRoles(
     }
 
     revalidatePath("/admin/seguridad");
+    revalidatePath("/admin/usuarios");
+    revalidatePath("/admin/roles");
     if (toAdd.length === 0 && toRemove.length === 0) {
       return { status: "ok", message: "Los roles ya estaban como estaban." };
     }

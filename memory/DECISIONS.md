@@ -761,6 +761,30 @@ Dos decisiones que parecen detalles y no lo son:
 respaldo corrupto y descubrirlo después deja una copia rota al otro lado que parece
 una copia de seguridad.
 
+## ADR-065 — Restablecimiento administrativo con versión de credenciales
+
+**Fecha:** 2026-11-15. **Motivo:** continuar el restablecimiento desde Usuarios;
+la recuperación por correo se aplaza por indicación del usuario.
+
+**Decisión:** acción/contrato y permiso propios (`users:reset_password`). No
+auto-reset ni cuentas inactivas; un superusuario solo puede ser restablecido por
+otro superusuario. Alta/PATCH impiden que un no-superusuario eluda la protección
+cambiando esa condición. La edición de perfil sigue sin admitir contraseñas.
+
+`users.token_version` comienza en 0. Emisión/renovación incluyen la versión y
+autenticación comprueba igualdad; la ausencia en tokens heredados equivale a 0.
+Reset incrementa versión, escribe Argon2, revoca refrescos y audita sin secretos
+en una transacción. Login, emisión, renovación y reset bloquean primero usuario,
+después refrescos, releyendo tras esperar; cuatro pruebas con transacciones
+PostgreSQL independientes fijan las dos ordenaciones posibles de login/refresh.
+
+**Consecuencias:** los tokens previos no sirven para peticiones posteriores al
+commit; una petición que ya pasó autorización puede terminar. No se cierran
+sesiones de otras cuentas ni se modifican claves al migrar. Una bajada al código
+viejo o al esquema sin versión pierde esta revocación: preferir corrección hacia
+adelante; restauración excepcional exige plan autorizado de invalidación general.
+No se promete contraseña temporal, cambio obligatorio ni correo sin implementarlos.
+
 ## ADR-064 — Analítica first-party agregada sin identificación de visitantes
 
 **Fecha:** 2026-11-11. **Motivo:** autorización del usuario para medir visitas,

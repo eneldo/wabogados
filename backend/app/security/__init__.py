@@ -68,6 +68,7 @@ def create_refresh_token(
     subject: UUID | str,
     expires_delta: timedelta | None = None,
     jti: str | None = None,
+    token_version: int = 0,
 ) -> str:
     settings = get_settings()
     now = datetime.now(UTC)
@@ -79,6 +80,7 @@ def create_refresh_token(
     claims: dict[str, Any] = {
         "sub": str(subject),
         "type": "refresh",
+        "token_version": token_version,
         "iat": now,
         "exp": expire,
     }

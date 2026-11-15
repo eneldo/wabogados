@@ -55,7 +55,9 @@ export type IconName =
   | "billing"
   | "analytics"
   | "security"
-  | "config";
+  | "config"
+  | "users"
+  | "roles";
 
 export const ADMIN_MODULES: AdminModule[] = [
   {
@@ -174,15 +176,28 @@ export const ADMIN_MODULES: AdminModule[] = [
     permission: "invoices:read",
   },
   {
+    slug: "usuarios",
+    label: "Usuarios",
+    href: "/admin/usuarios",
+    icon: "users",
+    state: "ready",
+    permission: "users:read",
+  },
+  {
+    slug: "roles",
+    label: "Roles",
+    href: "/admin/roles",
+    icon: "roles",
+    state: "ready",
+    permission: "roles:read",
+  },
+  {
     slug: "seguridad",
-    label: "Seguridad",
+    label: "Auditoría",
     href: "/admin/seguridad",
     icon: "security",
     state: "ready",
-    // Gated on the directory rather than on the module as a whole: the audit
-    // trail and the role catalogue have their own permissions, and the screen
-    // shows whichever of the three the profile is allowed to open.
-    permission: "users:read",
+    permission: "audit_logs:read",
   },
   {
     slug: "estadisticas-web",

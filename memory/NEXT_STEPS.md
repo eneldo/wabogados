@@ -1,22 +1,25 @@
 # NEXT STEPS
 
-## Prioridades vigentes — cierre 2026-11-11
+## Prioridades vigentes — actualizado 2026-11-15
 
-1. Esperar la próxima indicación del usuario: portada, páginas por área, iconos y
-   estadísticas privadas ya están implementados y activos localmente.
-2. Antes de un build completo de backend, revisar los cambios anteriores de
+1. Próxima fase indicada por el usuario: **«Olvidé mi contraseña»**, a tratar
+   después de revisar el reset administrativo ya activo. Requiere proveedor de
+   correo, tokens de un solo uso con caducidad, límites y no enumeración de cuentas.
+   No implementado ni activado todavía; cambio propio también sigue separado.
+2. **Usuarios/Roles y restablecimiento administrativo**: commit/push autorizados
+   por el usuario (consultar Git para el resultado final); ya
+   persistidos en imagen selectiva reproducible, no dependen del hot-patch previo.
+   Guía `docs/RESTABLECIMIENTO_CONTRASENAS.md`; 895 tests backend y E2E aprobados.
+   Evitar build completo de backend mientras Dockerfile/multimedia/IA sigan sin validar.
+3. Antes de un build completo de backend, revisar los cambios anteriores de
    Dockerfile, streaming multimedia y confidencialidad IA que siguen sin validar.
-   La release de analítica los excluyó; sus 881 pruebas no validan ese árbol completo.
-   No descartarlos ni declararlos terminados basándose en los resúmenes antiguos.
-3. El usuario autorizó después el commit/push de la entrega verificada. Consultar
-   Git para su referencia y estado remoto; los cambios previos sin validar quedan
-   separados, sin descartarlos ni publicarlos por accidente.
+   No descartarlos ni declararlos terminados basándose en resúmenes antiguos.
 4. Decisiones operativas: S3 externo/cuenta/bucket/credencial/Object Lock y política
    de confidencialidad del proveedor de IA; revisión del aviso legal por la firma.
    No hay publicación al dominio de Internet autorizada ni realizada en esta sesión.
 5. Analítica: observar datos reales desde activación en `/admin/estadisticas-web`,
    con cuenta administradora; interpretar visitantes como navegaciones estimadas.
-   No cargar datos sintéticos para «llenar» el panel. Guía: `docs/ESTADISTICAS_WEB.md`.
+   Guía: `docs/ESTADISTICAS_WEB.md`.
 
 Las secciones siguientes conservan hallazgos y planes anteriores; contrastarlos
 con `CURRENT_STATE.md` y `session_summary.md` antes de ejecutarlos.

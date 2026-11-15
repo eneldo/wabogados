@@ -17,8 +17,8 @@ generación asistida sigue pendiente de proveedor).
 - Compose define PostgreSQL, Redis, backend, worker de evidencias, ClamAV y
   frontend. MinIO y el destino provisional están comentados; el almacenamiento
   local es el activo y el destino S3 externo sigue pendiente de la firma.
-- Tests Docker aislados por savepoint: **881 pruebas y 85,77 % de cobertura** en
-  la release de analítica (2026-11-11), Git `0d91b47` más cambios de esta función.
+- Tests Docker aislados: **895 pruebas y 85,56 % de cobertura** en la release
+  de restablecimiento administrativo (2026-11-15), HEAD más lista revisada del manifest.
   El árbol conserva cambios anteriores de multimedia/IA sin validar y excluidos
   de la imagen desplegada; no extrapolar este resultado a esos pendientes.
 - Frontend: TypeScript/build correctos; ESLint sin errores, con un warning previo
@@ -27,6 +27,10 @@ generación asistida sigue pendiente de proveedor).
   `pyproject.toml` a lo verificado, y el extra `dev` incluye los stubs de tipos
   que faltaban. Hash de contraseñas con `argon2-cffi`.
 - Sesión: cerrar sesión revoca la sesión de refresco en el servidor (ADR-060).
+- Usuarios: restablecimiento administrativo con permiso `users:reset_password`,
+  confirmación, Argon2, revocación de refrescos y versión de credenciales para
+  invalidar JWT anteriores; pruebas de concurrencia con conexiones reales (ADR-065).
+  No modifica claves reales al desplegar. Cambio propio/recuperación por correo pendientes.
 - Respaldos: los objetos se verifican por digest contra `MANIFEST.sha256` antes
   de la copia externa (ADR-062).
 
@@ -77,7 +81,7 @@ Evidencias: originales inmutables, derivados optimizados, SHA-256, cadena de cus
 
 ## Base de datos
 PostgreSQL 17 via Docker Compose.
-Esquema local aplicado hasta `fd4e5f607182` (analítica web, 2026-11-11).
+Esquema local aplicado hasta `fe5f60718293` (contraseñas administrativas, 2026-11-15).
 Convención: UUID PK, timestamps, soft delete (is_active, deleted_at).
 
 ## Infraestructura
@@ -120,7 +124,7 @@ ClamAV integrado en evidencias/documentos; biblioteca multimedia pendiente.
 Ver `memory/IMPLEMENTED_FEATURES.md` y estado vigente en `memory/CURRENT_STATE.md`.
 
 ## Decisiones registradas
-Ver `memory/DECISIONS.md` (ADR-064: analítica first-party, 2026-11-11).
+Ver `memory/DECISIONS.md` (ADR-065: restablecimiento y versión de credenciales, 2026-11-15).
 
 ## Funcionalidades pendientes
 Ver `memory/NEXT_STEPS.md`.

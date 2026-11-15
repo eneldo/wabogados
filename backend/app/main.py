@@ -118,6 +118,7 @@ if settings.app_environment == "production":
         allowed_hosts=allowed_hosts_from_origins(settings.cors_origins),
     )
 
+
 # Security headers middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next: Any) -> JSONResponse:
@@ -130,6 +131,7 @@ async def add_security_headers(request: Request, call_next: Any) -> JSONResponse
     if settings.app_environment == "production":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
+
 
 app.include_router(router)
 
@@ -150,32 +152,21 @@ async def http_error_handler(request: Request, exc: StarletteHTTPException) -> J
         )
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "error": {"code": "http_error", "message": str(exc.detail), "details": None}
-        },
+        content={"error": {"code": "http_error", "message": str(exc.detail), "details": None}},
     )
 
 
 def safe_validation_errors(errors: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Make validation errors JSON serializable.
+    """Return field diagnostics, never raw inputs or validator exception context.
 
-    Pydantic places the original exception instance inside ``ctx``; encoding it
-    directly raises TypeError and would turn a 422 into an unhandled 500.
+    A model-level error can contain the whole credential payload in ``input``.
+    Allowlisting also keeps nested passwords/tokens out of 422 responses.
     """
-    cleaned: list[dict[str, Any]] = []
-    for error in errors:
-        item = {key: value for key, value in error.items() if key != "ctx"}
-        context = error.get("ctx")
-        if isinstance(context, dict):
-            item["ctx"] = {key: str(value) for key, value in context.items()}
-        cleaned.append(item)
-    return cleaned
+    return [{key: error[key] for key in ("type", "loc", "msg") if key in error} for error in errors]
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_error_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     del request
     return JSONResponse(
         status_code=422,

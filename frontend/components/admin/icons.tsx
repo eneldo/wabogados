@@ -56,6 +56,14 @@ const PATHS: Record<IconName, string> = {
   security:
     "M12 3.5l7 2.6v5.2c0 4.3-2.9 7.7-7 9.2-4.1-1.5-7-4.9-7-9.2V6.1zM12 10.2a1.6 1.6 0 0 0-.8 3v2.3h1.6v-2.3a1.6 1.6 0 0 0-.8-3",
 
+  // A person with a plus: user accounts.
+  users:
+    "M9 11a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 9 11M2.8 19.5c.6-3.1 3.2-5 6.2-5s5.6 1.9 6.2 5M18 8v6M15 11h6",
+
+  // Stacked tags: roles and permissions.
+  roles:
+    "M4 7.5l4-3 4 3v4l-4 3-4-3zM12 12.5l4-3 4 3v4l-4 3-4-3zM8 7.5h.01M16 12.5h.01",
+
   // Sliders, for the settings of the system.
   config:
     "M4 7h9M17 7h3M4 17h3M11 17h9M15 4.6v4.8M9 14.6v4.8",

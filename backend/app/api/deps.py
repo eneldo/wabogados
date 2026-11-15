@@ -47,12 +47,19 @@ async def get_current_user(
     if not user_id_str:
         raise credentials_exception
 
-    user_id = UUID(user_id_str)
+    try:
+        user_id = UUID(user_id_str)
+    except (ValueError, TypeError, AttributeError):
+        raise credentials_exception from None
     result = await session.execute(
         select(User).options(authorization_loader).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
     if not user:
+        raise credentials_exception
+
+    version = payload.get("token_version", 0)
+    if type(version) is not int or version != user.token_version:
         raise credentials_exception
 
     if not user.is_active:

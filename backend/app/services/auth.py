@@ -67,7 +67,14 @@ class UserService:
         return user
 
     async def authenticate(self, email: str, password: str) -> User | None:
-        user = await self.get_by_email(email)
+        # All credential writers/issuers lock the user first, then refresh rows.
+        # Re-read after waiting: an identity-map value may predate a reset.
+        user = await self.session.scalar(
+            select(User)
+            .where(User.email == email)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if not user:
             return None
         if not verify_password(password, user.hashed_password):
@@ -85,13 +92,25 @@ class TokenService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def issue_session(
-        self, user: User, meta: SessionMeta = (None, None)
-    ) -> tuple[str, str]:
+    async def issue_session(self, user: User, meta: SessionMeta = (None, None)) -> tuple[str, str]:
+        expected_version = user.token_version
+        locked = await self.session.scalar(
+            select(User)
+            .where(User.id == user.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if locked is None or not locked.is_active or locked.token_version != expected_version:
+            raise ValueError("Las credenciales cambiaron; inicie sesión de nuevo")
+        user = locked
         ip_address, user_agent = meta
         jti = uuid4().hex
-        refresh_token = create_refresh_token(subject=user.id, jti=jti)
-        access_token = create_access_token(subject=user.id)
+        refresh_token = create_refresh_token(
+            subject=user.id, jti=jti, token_version=user.token_version
+        )
+        access_token = create_access_token(
+            subject=user.id, extra_claims={"token_version": user.token_version}
+        )
 
         self.session.add(
             RefreshToken(
@@ -122,17 +141,32 @@ class TokenService:
         if not jti or not subject:
             return None
 
-        record = await self._get_active_session(jti, refresh_token)
-        if record is None:
+        try:
+            user_id = UUID(subject)
+        except (ValueError, TypeError, AttributeError):
             return None
-
-        user = await self.session.get(User, UUID(subject))
+        user = await self.session.scalar(
+            select(User)
+            .where(User.id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if user is None or not user.is_active:
+            return None
+        version = payload.get("token_version", 0)
+        if type(version) is not int or version != user.token_version:
+            return None
+        record = await self._get_active_session(jti, refresh_token)
+        if record is None or record.user_id != user.id:
             return None
         ip_address, user_agent = meta
         new_jti = uuid4().hex
-        new_refresh = create_refresh_token(subject=user.id, jti=new_jti)
-        new_access = create_access_token(subject=user.id)
+        new_refresh = create_refresh_token(
+            subject=user.id, jti=new_jti, token_version=user.token_version
+        )
+        new_access = create_access_token(
+            subject=user.id, extra_claims={"token_version": user.token_version}
+        )
 
         record.revoked_at = datetime.now(UTC)
         record.replaced_by_jti = new_jti
@@ -195,13 +229,14 @@ class TokenService:
 
     async def _get_session(self, jti: str) -> RefreshToken | None:
         result = await self.session.execute(
-            select(RefreshToken).where(RefreshToken.jti == jti)
+            select(RefreshToken)
+            .where(RefreshToken.jti == jti)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
 
-    async def _get_active_session(
-        self, jti: str, refresh_token: str
-    ) -> RefreshToken | None:
+    async def _get_active_session(self, jti: str, refresh_token: str) -> RefreshToken | None:
         record = await self._get_session(jti)
         if record is None or record.revoked_at is not None:
             return None

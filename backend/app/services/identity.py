@@ -3,11 +3,13 @@ from uuid import UUID
 
 from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import authorization_loader
 from app.models import AuditLog, Permission, Role, User
 from app.schemas.auth import UserCreate, UserUpdate
 from app.security import hash_password
+from app.services.auth import TokenService
 
 
 class IdentityError(Exception):
@@ -36,9 +38,7 @@ class UserAdminService:
         if is_active is not None:
             filters.append(User.is_active.is_(is_active))
 
-        total = await self.session.scalar(
-            select(func.count()).select_from(User).where(*filters)
-        )
+        total = await self.session.scalar(select(func.count()).select_from(User).where(*filters))
         # Newest first: the user just created is the one being looked for, and
         # an alphabetical directory hides it at an arbitrary page.
         result = await self.session.execute(
@@ -50,16 +50,33 @@ class UserAdminService:
         )
         return list(result.scalars().all()), int(total or 0)
 
-    async def get_user(self, user_id: UUID) -> User | None:
-        result = await self.session.execute(
-            select(User).options(authorization_loader).where(User.id == user_id)
-        )
+    async def get_user(self, user_id: UUID, *, lock: bool = False) -> User | None:
+        query = select(User).options(authorization_loader).where(User.id == user_id)
+        if lock:
+            query = query.with_for_update().execution_options(populate_existing=True)
+        result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def create_user(self, payload: UserCreate) -> User:
-        existing = await self.session.scalar(
-            select(User).where(User.email == payload.email)
+    async def reset_password(self, user: User, password: str, actor_id: UUID) -> int:
+        """Caller holds the user row lock; hash, revocations and audit commit together."""
+        user.hashed_password = hash_password(password)
+        user.token_version += 1
+        revoked = await TokenService(self.session).revoke_all_for_user(user.id)
+        self.session.add(
+            AuditLog(
+                user_id=actor_id,
+                action="admin_password_reset",
+                entity="users",
+                entity_id=user.id,
+                result="success",
+                after={"revoked_sessions": revoked},
+            )
         )
+        await self.session.flush()
+        return revoked
+
+    async def create_user(self, payload: UserCreate) -> User:
+        existing = await self.session.scalar(select(User).where(User.email == payload.email))
         if existing:
             raise IdentityError("El correo ya está registrado")
 
@@ -118,15 +135,77 @@ class UserAdminService:
         result = await self.session.execute(select(Role).where(Role.name == role_name))
         return result.scalar_one_or_none()
 
+    async def get_role(self, role_id: UUID) -> Role | None:
+        result = await self.session.execute(
+            select(Role).options(selectinload(Role.permissions)).where(Role.id == role_id)
+        )
+        return result.scalar_one_or_none()
+
     async def list_roles(self) -> list[Role]:
         result = await self.session.execute(select(Role).order_by(Role.name))
         return list(result.scalars().all())
 
     async def list_permissions(self) -> list[Permission]:
-        result = await self.session.execute(
-            select(Permission).order_by(Permission.name)
-        )
+        result = await self.session.execute(select(Permission).order_by(Permission.name))
         return list(result.scalars().all())
+
+    async def _permissions_by_names(self, names: list[str]) -> list[Permission]:
+        if not names:
+            return []
+        unique = list(dict.fromkeys(names))
+        result = await self.session.execute(select(Permission).where(Permission.name.in_(unique)))
+        found = {permission.name: permission for permission in result.scalars().all()}
+        missing = [name for name in unique if name not in found]
+        if missing:
+            raise IdentityError(f"Permisos desconocidos: {', '.join(sorted(missing))}")
+        return [found[name] for name in unique]
+
+    async def create_role(
+        self, *, name: str, description: str | None, permission_names: list[str]
+    ) -> Role:
+        existing = await self.session.scalar(select(Role).where(Role.name == name))
+        if existing:
+            raise IdentityError("El nombre del rol ya está en uso")
+        role = Role(name=name, description=description)
+        role.permissions = await self._permissions_by_names(permission_names)
+        self.session.add(role)
+        await self.session.flush()
+        await self.session.refresh(role)
+        return role
+
+    async def update_role(
+        self,
+        role: Role,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        permission_names: list[str] | None = None,
+    ) -> Role:
+        if name is not None and name != role.name:
+            existing = await self.session.scalar(
+                select(Role).where(Role.name == name, Role.id != role.id)
+            )
+            if existing:
+                raise IdentityError("El nombre del rol ya está en uso")
+            role.name = name
+        if description is not None:
+            role.description = description
+        if permission_names is not None:
+            role.permissions = await self._permissions_by_names(permission_names)
+        await self.session.flush()
+        await self.session.refresh(role)
+        return role
+
+    async def delete_role(self, role: Role) -> None:
+        assigned = await self.session.scalar(
+            select(func.count()).select_from(User).where(User.roles.any(Role.id == role.id))
+        )
+        if int(assigned or 0) > 0:
+            raise IdentityError(
+                "No se puede eliminar un rol asignado a usuarios. Retírelo primero."
+            )
+        await self.session.delete(role)
+        await self.session.flush()
 
     async def list_audit_logs(
         self,

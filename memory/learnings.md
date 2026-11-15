@@ -1,5 +1,25 @@
 <!-- Nuevos aprendizajes debajo de esta línea -->
 
+- **2026-11-15 — Invalidar credenciales exige serializar su emisión, no solo revocar filas:**
+  **Contexto:** El reset administrativo revocaba refrescos pero un JWT de acceso
+  seguía válido hasta caducar; un login/refresh concurrente podía emitir después
+  de la revocación con datos anteriores.
+  **Aprendizaje:** Versionar credenciales, comprobar versión en cada acceso y
+  bloquear/releer usuario antes de autenticar, emitir, renovar o restablecer;
+  siempre usuario antes que refrescos. La versión ausente representa 0 solo
+  para compatibilidad de despliegue. Una bajada al código viejo pierde esa garantía.
+  **Aplicación futura:** `test_password_reset.py` verifica ambas ordenaciones de
+  login/refresh frente a reset con transacciones independientes y espera de lock
+  observada en PostgreSQL; no simular concurrencia con un único savepoint.
+
+- **2026-11-15 — Un diálogo en una fila hereda sus restricciones tipográficas:**
+  **Contexto:** El reset funcionaba en E2E, pero la captura mostraba texto recortado
+  por `white-space: nowrap` de `.row-actions` y el margen reiniciado por Preflight.
+  **Aprendizaje:** Fijar `m-auto`, `whitespace-normal` y alineación del diálogo;
+  comprobar controles internos y `scrollWidth`, no solo el rectángulo exterior.
+  **Aplicación futura:** Reusar la regresión del diálogo en `e2e/password-reset.spec.ts`
+  al crear modales dentro de tablas y revisar capturas sin secretos.
+
 - **2026-10-22 — Unificar un tema oscuro exige separar texto, fondos y estados:**
   **Contexto:** Al extender la marca de la portada a los portales, las clases
   antiguas reutilizaban `ink` como texto y fondo, y `paper` como fondo y texto
@@ -913,3 +933,8 @@
   **Contexto:** Un contador sin campos personales igualmente habría duplicado IP/user agent en el middleware de auditoría y los escenarios E2E habrían inflado el contador real.
   **Aprendizaje:** La minimización debe revisarse de extremo a extremo: payload cerrado, rutas publicadas, sin credenciales/metadatos reenviados, excepción exacta del intake en auditoría y pruebas de escritura en una base efímera separada. Un UUID solo en memoria estima navegaciones, no personas ni únicos mensuales.
   **Aplicación futura:** Respetar DNT/GPC, documentar explícitamente estimación/retención, usar un presupuesto separado e idempotencia transaccional y excluir pruebas generales mediante DNT; nunca sembrar demostraciones en datos reales.
+
+- **2026-11-11 — Aplicar cambios backend con árbol de Dockerfile roto/sin validar:**
+  **Contexto:** Se necesitaban endpoints nuevos de roles, pero el `backend/Dockerfile` del árbol tenía una continuación RUN rota y había cambios previos de multimedia/IA sin validar; `docker compose build/up --build` intentó compilar backend y falló.
+  **Aprendizaje:** Para probar rápido y sin mezclar pendientes, se pueden copiar archivos Python modificados al contenedor en ejecución y reiniciar el servicio. Esto no persiste en la imagen ni sustituye un build revisado/scoped.
+  **Aplicación futura:** Usar hot-patch solo para verificación local acotada; antes de publicar, reconstruir con snapshot/selectivo que incluya los archivos validados y excluya los pendientes. Evitar `--build` global cuando un Dockerfile conocido está en mal estado.

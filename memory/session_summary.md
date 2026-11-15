@@ -1,5 +1,89 @@
 # Última sesión
 
+## 2026-11-15 — Publicación autorizada de Usuarios/Roles y contraseñas
+
+- El usuario solicita commit y push de la entrega nueva y explicación del flujo
+  «Olvidé mi contraseña». Esta solicitud no autoriza todavía su implementación.
+- Se publican Usuarios/Roles, restablecimiento administrativo, migración,
+  pruebas, guía y memoria. Se excluyen Dockerfile, media/API/servicio, configuración
+  IA, servicio IA y auditoría anterior sin validar; no se descartan esos pendientes.
+- Destino `origin/main` (`github.com/eneldo/wabogados`); resultado e identificador
+  definitivos consultables en Git. La nota «sin commit/push» de la entrega de abajo
+  describe su cierre previo a esta autorización.
+- Typecheck/lint frontend repetidos antes de publicar: correctos, con warning
+  previo del portal. Resultados backend/build/E2E anteriores conservados abajo.
+- Recuperación propuesta: correo con enlace aleatorio de un solo uso y caducidad,
+  respuesta sin enumerar cuentas, nueva clave confirmada y revocación de sesiones.
+  Pendiente definir/configurar servicio de correo y remitente; no enviar claves.
+
+## 2026-11-15 — Restablecimiento administrativo implementado y activo
+
+- Usuario autorizó continuar el cambio desde administrador; recuperación por
+  «Olvidé mi contraseña» queda para después. No se cambiaron claves reales.
+- `/admin/usuarios`: acción separada **Restablecer contraseña**, cuenta visible,
+  confirmación, mostrar/ocultar, 8–128 caracteres sin recortar espacios, limpieza
+  al cerrar/responder, foco/Escape y prevención de doble envío. Excluye cuenta
+  propia, inactivos y superusuarios cuando el actor no lo es.
+- API `POST /api/v1/admin/users/{user_id}/reset-password`, permiso sembrado
+  `users:reset_password`; hash Argon2, incremento de `token_version`, revocación
+  de refrescos y auditoría `admin_password_reset` atómicos. JWT previos rechazados;
+  tokens heredados sin versión se aceptan solo mientras el usuario tenga versión 0.
+- Login/emisión/refresh/reset serializan por bloqueo de usuario y releen tras
+  esperar. PATCH/alta impiden eludir protección mediante cambios de superusuario.
+  422 ya no devuelve `input`/`ctx`; presupuesto sensible separado para reset.
+- **Verificado:** 895 tests backend, **85,56 %** cobertura; Ruff/mypy limpios;
+  migración upgrade/downgrade/upgrade en base efímera. Typecheck/build frontend
+  OK; lint 0 errores, warning previo del portal. 2 E2E reales de reset y 19
+  públicos pasan; los 19 públicos repetidos sobre la instalación local desplegada.
+  Revisión visual 390/1440 y controles internos/overflow 320/390/768/1440.
+- La primera corrida amplia falló por entorno: backups esperan el hostname y
+  base canónicos `postgres-test/wabogados_test`. Separados gates y E2E, con
+  PostgreSQL/Redis propios; última corrida completa verde. No se ocultaron tests.
+- **Activo localmente:** migración `fe5f60718293`, imagen reproducible
+  `wabogados-password-reset:local` también etiquetada como backend de Compose.
+  Snapshot `.tmp/scoped-backend-ys8oavur/backend`, manifest con lista y hashes.
+  Incluye los tres archivos previos de Usuarios/Roles ya activos, excluye los
+  pendientes ajenos de Dockerfile/multimedia/IA. Backend/frontend saludables;
+  portada/ready HTTP 200 y contrato nuevo presente en OpenAPI.
+- Respaldo previo PostgreSQL `.tmp/password-reset-predeploy-20261115.dump`,
+  modo 0600, catálogo `pg_restore --list` verificado; imagen previa conservada
+  `wabogados-backend-before-password-reset:local` (no captura el hot-patch antiguo
+  de Roles). Tras resets no volver al código viejo ni bajar versión sin planificar
+  invalidación general: reintroduciría aceptación de JWT antiguos (ADR-065).
+- Guía: `docs/RESTABLECIMIENTO_CONTRASENAS.md`. Plan original actualizado,
+  CHANGELOG y contexto registrados. Sin commit/push. Temporal de autenticación y
+  contenedores de revisión se retiran al cierre; capturas/logs quedan en `.tmp/`.
+
+## 2026-11-15 — Diagnóstico y plan de restablecimiento en Usuarios
+
+- Solicitud del usuario: verificar `/admin/usuarios` y entregar plan; no implementar.
+- Navegador autenticado: HTTP 200; «Nuevo usuario» sí permite clave inicial
+  (8–128 caracteres), pero «Editar» no tiene contraseña y no hay botón de reset.
+  OpenAPI desplegado confirma que `UserUpdateAdmin` no recibe contraseña y que
+  falta endpoint de restablecimiento. Formularios no enviados; sesión cerrada.
+- Plan guardado en `docs/PLAN_RESTABLECIMIENTO_CONTRASENAS.md`: acción separada,
+  permiso dedicado sembrado, validación/Argon2, invalidación de refrescos y JWT
+  de acceso, auditoría sin secretos, pruebas aisladas y despliegue reproducible.
+- Riesgos a cubrir: el esquema impide aprovechar las ramas antiguas de password
+  de los servicios; revocar refrescos no invalida JWT de acceso; errores 422
+  conservan `input` y deben sanearse para secretos. Usuarios/Roles y pendientes
+  anteriores del backend siguen sin commit; evitar build completo a ciegas.
+- Sin cambios de código/cuentas, sin ejecutar reset, sin commit/push. Pendiente
+  autorización para implementar; cambio propio y recuperación por correo se
+  distinguen como fases opcionales.
+
+## 2026-11-15 — Restablecimiento de acceso administrador autorizado
+
+- Restablecida la contraseña de la cuenta administradora existente a petición
+  expresa del usuario. El acceso sigue usando correo electrónico, no el alias
+  literal «admin»; no se modificó el contrato de autenticación ni los roles.
+- Contraseña almacenada solo como hash Argon2 en PostgreSQL; no se guarda aquí
+  ni en archivos del repositorio. Operación registrada en auditoría como
+  `password_reset_authorized_local`, sin secretos.
+- Revocadas 4 sesiones de refresco previas. Verificados login e identidad
+  administradora por HTTP 200; sesión temporal de comprobación cerrada.
+- Sin cambios de código ni commit/push para esta operación.
+
 ## 2026-11-15 — Imagen de la Justicia en la portada
 
 - Sustituido solo el SVG de columnas/balanza a la derecha del titular por la

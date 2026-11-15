@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-11-15
+### Added
+- Restablecimiento administrativo en Usuarios con confirmación, permiso dedicado,
+  Argon2, revocación de refrescos y JWT anteriores, auditoría atómica y protección
+  de superusuarios. Migración `fe5f60718293`; pruebas de concurrencia y E2E aisladas.
+### Security
+- Los errores 422 omiten entradas/contexto sensibles. Alta y edición reservan
+  los cambios de superusuario a superusuarios. Las contraseñas conservan espacios.
+
 ## [Unreleased] - 2026-10-05
 ### Added
 - **V3 Facturación y V5 IA Jurídica: verificados funcionando** (2026-10-05).
