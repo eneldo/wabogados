@@ -51,6 +51,31 @@ for (const width of widths) {
     expect(identity.gutter).toBeLessThanOrEqual(80);
     expect(identity.overflow).toBeLessThanOrEqual(1);
 
+    const justice = page.getByRole("img", { name: "La Justicia con balanza y espada, mazo y emblema de WABOGADOS", exact: true });
+    await expect(justice).toBeVisible();
+    await expect(justice).toHaveJSProperty("complete", true);
+    const artwork = await justice.evaluate((image: HTMLImageElement) => {
+      const box = image.getBoundingClientRect();
+      const style = getComputedStyle(image);
+      const frame = image.closest(".home-hero-visual")!.getBoundingClientRect();
+      return {
+        src: image.currentSrc,
+        width: image.naturalWidth,
+        ratio: (box.width - 24) / (box.height - 24),
+        naturalRatio: image.naturalWidth / image.naturalHeight,
+        fit: style.objectFit,
+        withinFrame: box.left >= frame.left && box.right <= frame.right,
+      };
+    });
+    expect(artwork.src).toContain("logo-justicia.webp");
+    expect(artwork.width).toBeGreaterThan(100);
+    expect(artwork.ratio).toBeCloseTo(artwork.naturalRatio, 1);
+    expect(artwork.fit).toBe("contain");
+    expect(artwork.withinFrame).toBe(true);
+    const justiceResource = await request.get(artwork.src);
+    expect(justiceResource.status()).toBe(200);
+    expect(justiceResource.headers()["content-type"]).toMatch(/^image\//);
+
     const copy = await page.locator(".home-hero-copy").boundingBox();
     const illustration = await page.locator(".home-hero-visual").boundingBox();
     expect(copy).not.toBeNull();

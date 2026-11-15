@@ -4,6 +4,13 @@
 
 Esta sección y `session_summary.md` prevalecen sobre las notas históricas de abajo.
 
+- **Portada, imagen de Justicia (2026-11-15):** el hero muestra ahora
+  `Logo de Justicia.png` mediante un derivado público WebP sin pérdida,
+  sin alterar el original ni el logo de cabecera/pie. Frontend reconstruido y
+  saludable; typecheck/build correctos, lint sin errores (warning previo),
+  19 regresiones públicas verificadas, incluida carga/proporción en diez anchos.
+  Commit/push autorizados por el usuario; consultar Git para el resultado final
+  de publicación en `origin/main`. Guía en `docs/IDENTIDAD_WEB_PUBLICA.md`.
 - Aplicación local en ejecución (verificada 2026-11-15): portada `http://localhost:3000`,
   acceso `/login`, backend `http://localhost:8000/docs`; frontend y backend responden HTTP 200.
   Stack levantado con contenedores/imágenes existentes (sin rebuild). `evidence-worker` en

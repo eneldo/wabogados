@@ -23,7 +23,7 @@ Los contenedores ocupan todo el ancho con márgenes interiores fluidos de 20–8
 ## Portada editorial (2026-11-11)
 
 La página principal tiene una composición editorial de dos columnas: mensaje y
-acciones a la izquierda, ilustración arquitectónica enmarcada a la derecha.
+acciones a la izquierda, imagen de la Justicia enmarcada a la derecha.
 En móvil se apilan sin ocultar contenido. La franja superior facilita la llamada
 al despacho; las bandas de confianza, servicios numerados, principios y portal
 tienen superficies y jerarquías diferenciadas. Se mantienen el logo original,
@@ -34,6 +34,20 @@ los tokens compartidos ni la apariencia de login, administración o portal.
 La sección de análisis incluye el ancla `criterio` utilizada por su paginación.
 Las pruebas públicas también verifican el apilado de la portada y los enlaces a
 consulta, servicios y firma.
+
+### Imagen de la Justicia (2026-11-15)
+
+Por solicitud del usuario, la imagen `Logo de Justicia.png` de la raíz sustituye
+únicamente las columnas/balanza SVG del hero. No se cambia el logo de cabecera/pie,
+el marco ni los textos. El original permanece intacto. Ejecutar
+`python3 execution/prepare_public_justice.py` para regenerar
+`frontend/public/marca/logo-justicia.webp`: WebP sin pérdida, 1219 × 1290,
+1.126.684 bytes frente a 1.553.875 del PNG. Se verificó igualdad de píxeles RGBA.
+Se presenta completa (`object-fit: contain`), con fondo claro para sus letras
+negras y alturas máximas de 370 px (escritorio) y 280 px (móvil).
+Las regresiones públicas comprueban carga real HTTP/MIME, proporción y ajuste
+al marco en los diez anchos existentes; capturas de revisión en
+`.tmp/public-brand-review/justice-{390,1920}.png`.
 
 ## Navegación y consultas por área
 

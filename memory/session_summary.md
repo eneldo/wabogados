@@ -1,5 +1,28 @@
 # Última sesión
 
+## 2026-11-15 — Imagen de la Justicia en la portada
+
+- Sustituido solo el SVG de columnas/balanza a la derecha del titular por la
+  imagen aportada `Logo de Justicia.png`. Cabecera, pie, marco y textos conservados.
+- `execution/prepare_public_justice.py` genera
+  `frontend/public/marca/logo-justicia.webp` sin pérdida ni recorte (1219 × 1290;
+  1.126.684 bytes). Original intacto; píxeles RGBA idénticos comprobados.
+  SHA-256 original: `6ba26e029d239f8500295747c1ef8646af821ba0a6be2cabaa0b7e669f3f9a7a`.
+- Modificados `frontend/app/(public)/page.tsx`, `frontend/app/public-site.css`,
+  `frontend/e2e/public-site.spec.ts` y `docs/IDENTIDAD_WEB_PUBLICA.md`.
+  Imagen completa y proporcionada, fondo claro para que se lean las letras negras.
+- Typecheck OK; lint 0 errores y warning previo del portal; build Docker OK.
+  Solo frontend reconstruido/recreado, saludable en `http://localhost:3000`.
+  **19 pruebas públicas pasan**, con nuevas verificaciones de descarga real,
+  MIME, proporción y límites del marco en 320–2560 px. Capturas revisadas:
+  `.tmp/public-brand-review/justice-{390,1920}.png`.
+- Commit y push de esta entrega autorizados por el usuario; consultar Git para
+  el hash y resultado final de publicación en `origin/main`. Se incluyen el PNG
+  original, derivado WebP, generador, frontend, pruebas y esta documentación.
+  No se tocó backend ni se descartó trabajo previo; sus pendientes quedan fuera.
+  La entrega P0–P3 anterior sí se publicó en `fd581df`; las notas «sin commit»
+  de sus apartados inferiores son históricas.
+
 ## 2026-11-15 — Ejecución Plan P0 mejora web pública (autorizado)
 
 - **Aplicación ejecutada localmente:** stack levantado con contenedores/imágenes existentes (`docker compose up -d postgres redis backend frontend clamav`, sin rebuild). Frontend `http://localhost:3000` y backend `/api/v1/health/ready` en **HTTP 200**; postgres/redis/clamav saludables. `evidence-worker` en reinicio (no bloquea la web pública; pendiente de revisión operativa).

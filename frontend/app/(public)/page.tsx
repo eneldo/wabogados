@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-import { ColumnsIllustration } from "@/components/public/columns-illustration";
 import { apiFetchOr } from "@/lib/api";
 import { landingFor } from "@/lib/landing";
 import { requireSession } from "@/lib/session-guard";
@@ -288,7 +287,17 @@ export default async function PublicHomePage({
                 <span>WABOGADOS</span>
                 <span>ESTRATEGIA & DEFENSA</span>
               </div>
-              <ColumnsIllustration />
+              <div className="home-justice-art">
+                <Image
+                  src="/marca/logo-justicia.webp"
+                  alt="La Justicia con balanza y espada, mazo y emblema de WABOGADOS"
+                  width={1219}
+                  height={1290}
+                  sizes="(max-width: 767px) 85vw, (max-width: 1023px) 40vw, 350px"
+                  priority
+                  className="home-justice-image"
+                />
+              </div>
               <div className="home-art-caption">
                 <span className="home-art-symbol" aria-hidden="true">↗</span>
                 <div>

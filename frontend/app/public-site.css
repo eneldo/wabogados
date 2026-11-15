@@ -447,6 +447,23 @@ display:none}
   font-size: 9px;
   letter-spacing: .14em;
 }
+.public-home .home-justice-art {
+  display: flex;
+  justify-content: center;
+  margin-block: 22px;
+}
+.public-home .home-justice-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 370px;
+  object-fit: contain;
+  padding: 12px;
+  border-radius: 8px;
+  /* The supplied transparent artwork contains black lettering. */
+  background: #f4f1ea;
+}
 .public-home .hero-art {
   margin-block: 22px;
   animation: none;
@@ -581,6 +598,7 @@ display:none}
   .public-home .site-hero-title { font-size: clamp(2.25rem, 8vw, 4.5rem); }
   .public-home .home-hero-visual { width: 100%; max-width: 520px; justify-self: center; }
   .public-home .hero-art svg { max-height: 280px; }
+  .public-home .home-justice-image { max-height: 280px; }
   .public-home .home-trust-grid { grid-template-columns: 1fr; gap: 24px; }
   .public-home .trust-item { gap: 16px; }
   .public-home .home-location { font-size: 10px; letter-spacing: 0; }
