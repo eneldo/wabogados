@@ -27,9 +27,18 @@
     completo lanzado para validar la imagen.
 - **Fase 1 (versionado):** tres commits — `feat(auth)` recuperación de
   contraseña (backend+frontend+migración+docs+CHANGELOG), `test(e2e)`
-  `admin-portal.spec.ts` y `docs` (informe, plan, memoria) — push conjunto
-  a `origin/main`, CI a verificar y **tag `v1.0.0-rc1` tras CI verde**
-  (el rollback de `DEPLOY.md` §5 asume tags).
+  `admin-portal.spec.ts` y `docs` (informe, plan, memoria) — push conjunto a
+  `origin/main`.
+- **Incidente CI en fase 1 (resuelto):** el run #10 falló en *Secrets scan*
+  con `ERROR: Unexpected exit code [1]` (los demás gates quedaron saltados).
+  Causa raíz reproducida: la acción usa gitleaks **8.24.3** y en pushes
+  multi-commit escanea `commits[0]^..commits[last]`; el checkout shallow
+  (depth 1) no tiene ese revision → `git log` falla → exit 1. Los pushes de
+  un solo commit usan `--log-opts=-1` y por eso pasaban. Corrección:
+  `fetch-depth: 0` en el checkout del job de backend (con comentario en el
+  workflow). Aprendizaje registrado en `learnings.md`. El run se repite con
+  el push del fix (multi-commit, ejercitando la corrección) y **tag
+  `v1.0.0-rc1` tras CI verde**.
 
 ## 2026-11-17 — Plan completo para producción entregado
 

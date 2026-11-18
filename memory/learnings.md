@@ -962,3 +962,19 @@
   **Contexto:** Se necesitaban endpoints nuevos de roles, pero el `backend/Dockerfile` del árbol tenía una continuación RUN rota y había cambios previos de multimedia/IA sin validar; `docker compose build/up --build` intentó compilar backend y falló.
   **Aprendizaje:** Para probar rápido y sin mezclar pendientes, se pueden copiar archivos Python modificados al contenedor en ejecución y reiniciar el servicio. Esto no persiste en la imagen ni sustituye un build revisado/scoped.
   **Aplicación futura:** Usar hot-patch solo para verificación local acotada; antes de publicar, reconstruir con snapshot/selectivo que incluya los archivos validados y excluya los pendientes. Evitar `--build` global cuando un Dockerfile conocido está en mal estado.
+
+- **2026-11-17 — gitleaks-action sale con exit 1 en pushes multi-commit (shallow clone):**
+  **Contexto:** El gate de secretos del CI falló en el push de tres commits de la
+  fase 1 del plan de producción (`ERROR: Unexpected exit code [1]`), mientras los
+  pushes de un solo commit pasaban; gitleaks local sobre el mismo rango salía
+  limpio y sin fugas.
+  **Aprendizaje:** `gitleaks/gitleaks-action@v2` instala por defecto gitleaks
+  **8.24.3** y en pushes escanea `commits[0]^..commits[last]`; `actions/checkout@v4`
+  usa `fetch-depth=1`, así que en un push multi-commit el revision `commits[0]^`
+  no existe en el clone, `git log` falla y 8.24.3 sale con código 1 (fallo de
+  escaneo, no fuga). gitleaks 8.30.1 en cambio tolera ese error, escanea 0
+  commits y sale 0 — un falso verde peor que el fallo. Reproducido con un clone
+  `--depth 1` y el binario 8.24.3: mismo error, mismo exit 1.
+  **Aplicación futura:** `fetch-depth: 0` en todo checkout que alimente gitleaks;
+  ante «Unexpected exit code [1]» revisar el rango del evento y el shallow clone
+  antes que buscar secretos; desconfiar de todo escaneo que reporte 0 commits.
