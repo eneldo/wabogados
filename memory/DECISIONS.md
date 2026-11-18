@@ -861,3 +861,53 @@ fue `docker compose up`, con `executable file not found`.
 De ahí `test_packaging.py`: un test no puede importar el entrypoint, pero sí leer
 el `CMD` del Dockerfile y comprobar que ese binario está declarado. Un gate que no
 puede observar el fallo no es un gate.
+
+## ADR-067 — HTTPS terminado con nginx en `compose.prod.yaml`
+**Decisión (plan de producción, fase 3, decisión 2, 2026-11-17):** el stack de
+producción queda detrás de un nginx como servicio del overlay `compose.prod.yaml`
+que termina TLS y renueva certificados (Let's Encrypt o los del proveedor).
+**Motivo:** todo el despliegue vive en Compose y se puede reproducir y ensayar en
+un host equivalente; no depende de la configuración de un proxy externo que no
+podemos versionar. HSTS ya lo emite el backend con `APP_ENVIRONMENT=production`.
+**Impacto:** solo el nginx recibe 80/443; PostgreSQL, Redis y MinIO nunca se
+publican. La renovación de certificados debe automatizarse.
+
+## ADR-068 — Política de IA: `AI_CONFIDENTIALITY=ANONYMIZED`
+**Decisión (fase 3, decisión 6, 2026-11-17):** el contexto enviado al proveedor
+de IA se sanea (IDs de expediente, cliente y usuario ocultos) antes de salir.
+**Motivo:** el proveedor no necesita identificadores internos para redactar;
+`NONE` arriesga la confidencialidad del cliente y `FULL` dejaría la función
+inservible. El saneado ya estaba implementado en la rama
+`feature/ai-confidentiality`, apartada en la fase 0.
+**Impacto:** se fusiona la rama a `main` y `ANONYMIZED` pasa a ser el valor por
+defecto; volver a `NONE` exige un valor explícito en `.env`.
+
+## ADR-069 — Aviso de privacidad aprobado y publicado en `/privacidad`
+**Decisión (fase 3, decisión 7, 2026-11-17):** se aprueba el texto vigente del
+aviso de privacidad (ya con responsable, canal y derechos) y se publica como
+página pública `/privacidad` con enlace en el pie del sitio.
+**Motivo:** el sitio trata datos de clientes y visitantes; el aviso debe ser
+localizable sin iniciar sesión.
+**Impacto:** el pie gana un enlace permanente; editar el aviso exige revisión
+nueva.
+
+## ADR-070 — Zona horaria `America/Bogota` confirmada
+**Decisión (fase 3, decisión 9, 2026-11-17):** se confirma `America/Bogota`,
+ya fijada en código.
+**Motivo:** UTC-5 sin horario de verano, coherente con toda la operación.
+**Impacto:** sin cambio; cualquier oficina en otro huso obligará a revisar
+presentaciones de fechas y reportes.
+
+## ADR-071 — Confirmación por correo en el formulario público de consulta
+**Decisión (fase 3, decisión 10, 2026-11-17):** el formulario público de
+consulta enviará un correo de confirmación al interesado (hoy solo registra).
+**Motivo:** confirma al interesado que su consulta quedó recibida.
+**Impacto:** se implementa en la fase 6 junto con el SMTP; bloqueada por la
+decisión 5 (proveedor de correo). Si SMTP queda sin configurar, se documenta
+como limitación aceptada.
+
+## ADR-072 — Noticias «Pendiente» aprobadas para publicación
+**Decisión (fase 3, decisión 8, 2026-11-17):** se aprueban todas las noticias
+marcadas «Pendiente» y se publican tal cual están redactadas.
+**Motivo:** la portada no debe abrir con contenido en estado de espera.
+**Impacto:** cualquier corrección posterior pasa por el flujo editorial normal.
