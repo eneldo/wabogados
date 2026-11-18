@@ -8,7 +8,10 @@ nothing in it is published to the portal.
 deactivation so the row can be brought back with its bytes still in place.
 """
 
+import asyncio
+import os
 import re
+from collections.abc import AsyncIterator
 from typing import Annotated, Any
 from urllib.parse import quote
 from uuid import UUID
@@ -235,14 +238,22 @@ async def upload_media_content(
 ) -> MediaResponse:
     """Attach or replace the file of a registered resource.
 
-    The whole upload is read into memory and then stored. That is acceptable up to
-    `max_media_bytes` and no further: past it the file belongs in the worker queue
-    (ADR-049), which does not exist yet, so the cap is what keeps a video from
-    exhausting the request thread instead.
+    The upload is spooled to disk and digested while writing, so the returned
+    `StoredObject` describes the object that exists — the same guarantee `write`
+    gives — and a failure has to leave no partial object behind. The cap is
+    measured **before** the service runs: an oversized replacement must never
+    touch the object it would replace. Past the cap the file belongs in the
+    worker queue (ADR-049), which does not exist yet.
     """
     cap = get_settings().max_media_bytes
-    content = await file.read(cap + 1)
-    if len(content) > cap:
+    # The multipart body is already spooled by the time this runs, so seeking
+    # to the end measures it without reading it into memory — and answering
+    # here, before the service runs, is what keeps `has_file` false on a
+    # refusal (test_an_oversized_library_file_is_refused_with_413).
+    file.file.seek(0, os.SEEK_END)
+    upload_size = file.file.tell()
+    file.file.seek(0)
+    if upload_size > cap:
         raise HTTPException(
             status_code=HTTP_413_CONTENT_TOO_LARGE,
             detail=(
@@ -254,7 +265,18 @@ async def upload_media_content(
 
     service, item = await _require_item(session, actor, scope, media_id)
     try:
-        updated = await service.attach_file(item, content, file.filename)
+        loop = asyncio.get_running_loop()
+
+        async def _file_stream() -> AsyncIterator[bytes]:
+            while True:
+                chunk = await loop.run_in_executor(None, file.file.read, 65536)
+                if not chunk:
+                    break
+                yield chunk
+
+        updated = await service.attach_file_stream(
+            item, _file_stream(), file.filename
+        )
     except MediaError as error:
         raise _fail(error) from error
     await session.commit()

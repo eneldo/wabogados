@@ -28,9 +28,10 @@ RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --create-home app
 # and the non root application user can persist documents.
 RUN mkdir -p /var/lib/wabogados/storage /var/lib/wabogados/backups \
  && chown -R app:app /var/lib/wabogados
-# Backup and restore tooling, same reason as the builder stage.
+# Multimedia tools: ffmpeg for transcoding and ffprobe for duration measurement.
 RUN set -eux; \
     apt-get update; \
+    apt-get install -y --no-install-recommends ffmpeg; \
     apt-get install -y --no-install-recommends postgresql-client; \
     pg_dump --version; \
     rm -rf /var/lib/apt/lists/*

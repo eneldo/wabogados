@@ -27,6 +27,7 @@ Two rules carry most of the weight:
 """
 
 import logging
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -392,6 +393,104 @@ class MediaService:
         # (no longer existing) image as the face of the replacement.
         if item.kind in THUMBNAIL_KINDS:
             await self._refresh_thumbnail(item, content)
+        else:
+            await self._drop_thumbnail(item)
+
+        await self.session.flush()
+        await self.session.refresh(item)
+        return item
+
+    async def attach_file_stream(
+        self, item: MediaItem, content: AsyncIterator[bytes], filename: str | None
+    ) -> MediaItem:
+        """Store a byte stream and record what was actually persisted.
+
+        Uses `StorageBackend.write_stream` which spools chunks to disk, computes
+        the digest incrementally, and returns a `StoredObject` describing the
+        persisted bytes. The route enforces `max_media_bytes` before calling, so
+        an oversized replacement never reaches this method — and `spool_to_disk`
+        removes the temp file if anything raises mid-stream, which is what makes
+        "no partial object" true for a stream and not only for `write`.
+        """
+        # Peek at the first bytes to detect the type. An async iterator cannot
+        # be seeked, so whatever is consumed here is handed back to the writer
+        # through `_with_prefix`: dropping it would truncate every stored object
+        # by the whole first chunk, not just by HEADER_BYTES.
+        header_bytes = b""
+        async for chunk in content:
+            header_bytes += chunk
+            if len(header_bytes) >= HEADER_BYTES:
+                break
+        detected = detect_media_type(header_bytes)
+        if detected is None:
+            raise MediaValidationError(
+                "No se reconoce el tipo del archivo por su contenido. "
+                "La biblioteca admite vídeo, imagen, audio y PDF."
+            )
+        if detected not in MEDIA_MIME_KINDS:
+            raise MediaValidationError(f"Tipo no admitido en la biblioteca: {detected}")
+
+        async def _with_prefix() -> AsyncIterator[bytes]:
+            """Give the writer the peeked prefix first, then the rest."""
+            if header_bytes:
+                yield header_bytes
+            async for chunk in content:
+                yield chunk
+
+        if item.storage_key is not None:
+            # Replacing a file keeps one object per record, so the previous one is
+            # removed — the one case where `delete` is right, because the row keeps
+            # the history and only the superseded bytes go.
+            await self._drop_previous(item)
+
+        storage = self._backend()
+        key = build_media_key(item.id, MEDIA_EXTENSIONS.get(detected, ".bin"))
+        try:
+            stored = await storage.write_stream(key, _with_prefix(), tier=StorageTier.HOT)
+        except StorageError as error:
+            raise MediaError(f"No se pudo guardar el archivo: {error}") from error
+
+        before = {field: getattr(item, field, None) for field in TRACKED_MEDIA_FIELDS}
+        item.storage_key = stored.key
+        item.sha256 = stored.sha256
+        item.size_bytes = stored.size_bytes
+        item.mime_type = detected
+        item.kind = kind_for(detected)
+        item.storage_tier = stored.tier.value
+        if filename:
+            item.original_filename = filename
+        record_changes(
+            self.session,
+            entity=MEDIA_ENTITY,
+            entity_id=item.id,
+            before=before,
+            after={
+                "mime_type": detected,
+                "sha256": stored.sha256,
+                "size_bytes": stored.size_bytes,
+            },
+            changed_by=None,
+            fields=TRACKED_MEDIA_FIELDS,
+            reason="Archivo cargado",
+        )
+
+        # The poster tracks the kind, not the history: attaching a video over an
+        # image must retire the old poster, or the route would keep showing the
+        # (no longer existing) image as the face of the replacement.
+        if item.kind in THUMBNAIL_KINDS:
+            # The stream is spent, so the poster comes from the object just
+            # written. Images are the only kind that gets one, and reading one
+            # back costs what holding the whole upload in memory used to cost
+            # before the streaming refactor.
+            try:
+                stored_bytes = await storage.read(stored.key)
+            except StorageError as error:
+                logger.warning(
+                    "No se pudo releer %s para la miniatura: %s", stored.key, error
+                )
+                await self._drop_thumbnail(item)
+            else:
+                await self._refresh_thumbnail(item, stored_bytes)
         else:
             await self._drop_thumbnail(item)
 
