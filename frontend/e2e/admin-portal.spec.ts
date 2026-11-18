@@ -20,7 +20,13 @@ const modules = [
   ["/admin/multimedia", "Centro multimedia"],
   ["/admin/ia-juridica", "IA Jurídica"],
   ["/admin/facturacion", "Facturación"],
-  ["/admin/seguridad", "Usuarios"],
+  // `de6d18a` turned the old combined screen into the audit log and moved user
+  // and role management into their own modules; the crawl follows that layout.
+  ["/admin/usuarios", "Usuarios"],
+  ["/admin/roles", "Roles"],
+  ["/admin/notificaciones", "Notificaciones"],
+  ["/admin/analisis", "Análisis jurídicos"],
+  ["/admin/seguridad", "Auditoría"],
   ["/admin/configuracion", "Configuración"],
   ["/admin/estadisticas-web", "Estadísticas web"],
 ] as const;
@@ -171,7 +177,12 @@ test("public entry, existing session, all admin modules, mobile and server logou
 
     await page.setViewportSize({ width: 390, height: 900 });
     await page.getByRole("button", { name: "Abrir el menú de administración", exact: true }).click();
-    await expect(page.locator('nav[aria-label="Administración"] a:visible')).toHaveCount(13);
+    // The mobile drawer must offer every ready module, same as the desktop
+    // aside above: a hardcoded count silently went stale when `de6d18a` added
+    // modules, so the count is derived from the menu itself.
+    await expect(page.locator('nav[aria-label="Administración"] a:visible')).toHaveCount(
+      ADMIN_MODULES.filter((module) => module.state === "ready").length,
+    );
     await expectCorporateBrand(page);
     await expect(page.getByRole("link", { name: "Mi panel", exact: true }).filter({ visible: true })).toHaveAttribute("href", "/admin");
     await page.screenshot({ path: path.join(captures, "mobile-menu.png"), animations: "disabled" });
