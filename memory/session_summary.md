@@ -1,5 +1,28 @@
 # Última sesión
 
+## 2026-11-17 — Fase 2 (BD local + stack de referencia) completada
+
+- **Respaldo previo verificado:** `.tmp/phase2-predeploy-20261117.dump`
+  (219 KiB, modo 0600, `pg_restore --list` con 403 entradas sin errores).
+  *Nota operativa:* con el stack caído, `docker compose run --no-deps postgres
+  pg_dump` sale con 1 porque el entrypoint no arranca el servidor cuando el
+  comando es `pg_dump`; la vía correcta es `up -d postgres` y luego
+  `docker compose exec -T postgres pg_dump`. Aprendizaje registrado.
+- **Migración:** `alembic upgrade head` aplicó `ff60718293a4` —
+  `alembic current` = `ff60718293a4 (head)` (antes `fe5f60718293`).
+- **Imágenes reconstruidas desde el árbol gateado:** backend (fase 0),
+  frontend (`--pull`, incluye las pantallas de recuperación) y
+  **evidence-worker** (su imagen tenía 26 días, del 22-oct).
+- **Stack completo sano:** `docker compose up -d --wait` → los 6 servicios
+  healthy; `evidence-worker` deja el crash loop por DNS (0 reinicios,
+  `Up (healthy)`).
+- **Smoke en verde:** `health/live` y `health/ready` 200, frontend 200,
+  login administrativo 200 con tokens, `test_media` **46/46** en el
+  contenedor de test, Playwright `--project=public` **19/19** contra el
+  stack local, sin errores en logs del backend.
+- **Criterio de fase 2 cerrado.** Siguiente: fase 3 — decisiones
+  **[FIRMA]** (10 ítems) que bloquean el go-live y las fases 4–8.
+
 ## 2026-11-17 — Plan de producción: fases 0 y 1 ejecutadas
 
 - Autorización del usuario: iniciar fase 0 y **commitear/pushear cada fase

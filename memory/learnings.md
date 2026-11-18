@@ -978,3 +978,17 @@
   **Aplicación futura:** `fetch-depth: 0` en todo checkout que alimente gitleaks;
   ante «Unexpected exit code [1]» revisar el rango del evento y el shallow clone
   antes que buscar secretos; desconfiar de todo escaneo que reporte 0 commits.
+
+- **2026-11-17 — `docker compose run <svc> pg_dump` no sirve con el stack caído:**
+  **Contexto:** El respaldo previo de la fase 2 salió con exit 1 y 0 bytes:
+  `docker compose run --rm --no-deps postgres pg_dump ...` crea un contenedor
+  nuevo cuyo entrypoint de la imagen oficial solo arranca el servidor si el
+  comando es `postgres`; con `pg_dump` lo ejecuta directamente y no hay socket.
+  **Aprendizaje:** El patrón correcto para volcar una base parada es
+  `docker compose up -d postgres` (los datos viven en el volumen, arrancar no
+  los modifica) y después `docker compose exec -T postgres pg_dump -U <user>
+  -Fc <db> > archivo`. El volcado desde un contenedor secundario exige además
+  conexión TCP al servicio y sus credenciales.
+  **Aplicación futura:** En todo procedimiento de respaldo pre-despliegue,
+  arrancar primero el servicio y volcar con `exec`; verificar siempre con
+  `pg_restore --list` y chmod 600 antes de tocar migraciones.
