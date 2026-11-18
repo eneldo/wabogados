@@ -36,9 +36,9 @@
   (depth 1) no tiene ese revision → `git log` falla → exit 1. Los pushes de
   un solo commit usan `--log-opts=-1` y por eso pasaban. Corrección:
   `fetch-depth: 0` en el checkout del job de backend (con comentario en el
-  workflow). Aprendizaje registrado en `learnings.md`. El run se repite con
-  el push del fix (multi-commit, ejercitando la corrección) y **tag
-  `v1.0.0-rc1` tras CI verde**.
+  workflow). Aprendizaje registrado en `learnings.md`. **Run #11 en verde
+  tras el fix** (push multi-commit que ejercita la corrección) y **tag
+  `v1.0.0-rc1` creado y empujado** sobre `fda9a98`.
 
 ## 2026-11-17 — Plan completo para producción entregado
 
