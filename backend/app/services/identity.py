@@ -9,7 +9,12 @@ from app.api.deps import authorization_loader
 from app.models import AuditLog, Permission, Role, User
 from app.schemas.auth import UserCreate, UserUpdate
 from app.security import hash_password
-from app.services.auth import TokenService
+from app.services.credentials import (
+    apply_identity_update,
+    change_password,
+    invalidate_recovery,
+    lock_user,
+)
 
 
 class IdentityError(Exception):
@@ -59,21 +64,9 @@ class UserAdminService:
 
     async def reset_password(self, user: User, password: str, actor_id: UUID) -> int:
         """Caller holds the user row lock; hash, revocations and audit commit together."""
-        user.hashed_password = hash_password(password)
-        user.token_version += 1
-        revoked = await TokenService(self.session).revoke_all_for_user(user.id)
-        self.session.add(
-            AuditLog(
-                user_id=actor_id,
-                action="admin_password_reset",
-                entity="users",
-                entity_id=user.id,
-                result="success",
-                after={"revoked_sessions": revoked},
-            )
+        return await change_password(
+            self.session, user, password, action="admin_password_reset", actor_id=actor_id
         )
-        await self.session.flush()
-        return revoked
 
     async def create_user(self, payload: UserCreate) -> User:
         existing = await self.session.scalar(select(User).where(User.email == payload.email))
@@ -93,17 +86,22 @@ class UserAdminService:
         return user
 
     async def update_user(self, user: User, payload: UserUpdate) -> User:
+        locked = await lock_user(self.session, user.id)
+        if locked is None:
+            raise IdentityError("Usuario no encontrado")
+        user = locked
         data = payload.model_dump(exclude_unset=True)
-        password = data.pop("password", None)
-        if password:
-            user.hashed_password = hash_password(password)
-        for field, value in data.items():
-            setattr(user, field, value)
+        await apply_identity_update(self.session, user, data)
         await self.session.flush()
         await self.session.refresh(user)
         return user
 
     async def deactivate_user(self, user: User, actor_id: UUID | None) -> User:
+        locked = await lock_user(self.session, user.id)
+        if locked is None:
+            raise IdentityError("Usuario no encontrado")
+        user = locked
+        await invalidate_recovery(self.session, user)
         user.is_active = False
         user.deleted_at = datetime.now(UTC)
         user.deleted_by = actor_id

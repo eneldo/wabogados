@@ -63,8 +63,13 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      name: "password-recovery",
+      testMatch: /password-recovery\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "layout",
-      testIgnore: [/public-site\.spec\.ts/, /admin-portal\.spec\.ts/, /website-analytics\.spec\.ts/, /password-reset\.spec\.ts/],
+      testIgnore: [/public-site\.spec\.ts/, /admin-portal\.spec\.ts/, /website-analytics\.spec\.ts/, /password-reset\.spec\.ts/, /password-recovery\.spec\.ts/],
       use: {
         ...devices["Desktop Chrome"],
         storageState: "e2e/.auth.json",

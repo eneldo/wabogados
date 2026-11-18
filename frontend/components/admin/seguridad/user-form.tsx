@@ -223,7 +223,7 @@ export function EditUserButton({ user }: { user: AdminUserRecord }) {
                   name="is_verified"
                   label="Correo verificado"
                   defaultChecked={user.is_verified}
-                  hint="Solo importa si la cuenta se creó con la verificación pendiente."
+                  hint="Habilita la recuperación por correo cuando está configurada. Confirme primero la identidad y el correo del titular; cambiar el correo retira esta verificación."
                 />
               </div>
             </fieldset>

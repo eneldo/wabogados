@@ -57,11 +57,14 @@ class UserService:
         return user
 
     async def update(self, user: User, user_in: UserUpdate) -> User:
+        from app.services.credentials import apply_identity_update, lock_user
+
+        locked = await lock_user(self.session, user.id)
+        if locked is None:
+            raise ValueError("Usuario no encontrado")
+        user = locked
         update_data = user_in.model_dump(exclude_unset=True)
-        if "password" in update_data:
-            update_data["hashed_password"] = hash_password(update_data.pop("password"))
-        for field, value in update_data.items():
-            setattr(user, field, value)
+        await apply_identity_update(self.session, user, update_data)
         await self.session.flush()
         await self.session.refresh(user)
         return user

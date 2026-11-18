@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import _trusted_proxies, get_client_ip, get_current_user, get_session
+from app.core.config import get_settings
+from app.core.recovery_config import get_recovery_settings
 from app.models import User
 from app.schemas.auth import (
     LoginRequest,
@@ -12,9 +14,83 @@ from app.schemas.auth import (
     UserResponse,
 )
 from app.schemas.identity import SessionInfo
+from app.schemas.password_recovery import ForgotPasswordRequest, RecoverPasswordRequest
 from app.services.auth import SessionMeta, TokenService, UserService
+from app.services.password_recovery import (
+    GENERIC_RECOVERY_MESSAGE,
+    PasswordRecoveryService,
+    RecoveryError,
+)
+from app.services.recovery_limits import check_recipient_limit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _require_recovery() -> None:
+    config = get_recovery_settings()
+    if not config.enabled:
+        raise HTTPException(
+            503, "La recuperación por correo aún no está disponible. Contacte al administrador."
+        )
+    try:
+        config.validate_enabled(get_settings().app_environment)
+    except ValueError:
+        raise HTTPException(
+            503, "La recuperación no está disponible. Inténtelo más tarde."
+        ) from None
+
+
+@router.get("/password-recovery")
+async def password_recovery_status() -> dict[str, bool]:
+    try:
+        _require_recovery()
+    except HTTPException:
+        return {"enabled": False}
+    return {"enabled": True}
+
+
+@router.post("/forgot-password", response_model=MessageResponse, status_code=202)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> MessageResponse:
+    _require_recovery()
+    if await check_recipient_limit(str(payload.email)):
+        try:
+            await PasswordRecoveryService(session).request(str(payload.email))
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise HTTPException(
+                503, "La recuperación no está disponible. Inténtelo más tarde."
+            ) from None
+    return MessageResponse(message=GENERIC_RECOVERY_MESSAGE)
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def recover_password(
+    payload: RecoverPasswordRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> MessageResponse:
+    _require_recovery()
+    try:
+        await PasswordRecoveryService(session).confirm(
+            payload.token.get_secret_value(), payload.new_password.get_secret_value()
+        )
+        await session.commit()
+    except RecoveryError:
+        await session.rollback()
+        raise HTTPException(
+            400, "El enlace no es válido o ha caducado. Solicite uno nuevo."
+        ) from None
+    except Exception:
+        await session.rollback()
+        raise HTTPException(
+            503, "La recuperación no está disponible. Inténtelo más tarde."
+        ) from None
+    return MessageResponse(message="Contraseña actualizada. Inicie sesión con su nueva contraseña.")
 
 
 def _session_meta(request: Request) -> SessionMeta:

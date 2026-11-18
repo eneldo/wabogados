@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
 
 /**
@@ -99,6 +100,9 @@ export function LoginForm() {
       >
         {busy ? "Comprobando…" : "Entrar"}
       </button>
+      <Link href="/olvide-contrasena" prefetch={false} className="block text-center text-sm text-ink-muted underline underline-offset-4 hover:text-wax">
+        Olvidé mi contraseña
+      </Link>
     </form>
   );
 }

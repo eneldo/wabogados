@@ -2,10 +2,16 @@
 
 ## 2026-11-15
 ### Added
+- «Olvidé mi contraseña»: solicitud genérica, enlace de 20 minutos/un uso,
+  outbox cifrada y worker SMTP independiente; recuperación atómica y pantallas
+  accesibles. Migración `ff60718293a4`; apagada hasta configurar correo/HTTPS.
 - Restablecimiento administrativo en Usuarios con confirmación, permiso dedicado,
   Argon2, revocación de refrescos y JWT anteriores, auditoría atómica y protección
   de superusuarios. Migración `fe5f60718293`; pruebas de concurrencia y E2E aisladas.
 ### Security
+- Cambiar correo retira su verificación e invalida recuperación pendiente;
+  reset/desactivación también cancelan enlaces. Límites separados y confianza
+  de ingress firmada; no se guardan tokens en URLs HTTP/logs ni almacenamiento web.
 - Los errores 422 omiten entradas/contexto sensibles. Alta y edición reservan
   los cambios de superusuario a superusuarios. Las contraseñas conservan espacios.
 

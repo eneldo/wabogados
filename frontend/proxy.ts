@@ -53,6 +53,10 @@ function needsRenewal(token: string | undefined): boolean {
 }
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
+  if (["/olvide-contrasena", "/restablecer-contrasena"].includes(request.nextUrl.pathname)
+      || request.nextUrl.pathname.startsWith("/api/recuperacion/")) {
+    return NextResponse.next();
+  }
   const access = request.cookies.get(ACCESS_COOKIE)?.value;
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
 

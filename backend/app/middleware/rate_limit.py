@@ -157,6 +157,51 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await self.local_store.hit(key, window)
 
     async def dispatch(self, request: Request, call_next: Any) -> Response:
+        if request.url.path in {"/api/v1/auth/forgot-password", "/api/v1/auth/reset-password"}:
+            from fastapi import HTTPException
+            from starlette.responses import JSONResponse
+
+            from app.core.recovery_config import get_recovery_settings
+            from app.services.recovery_limits import check_limits
+
+            # Count before body validation, so malformed submissions cannot
+            # bypass budgets. Never trust a bearer identity on this public flow.
+            try:
+                config = get_recovery_settings()
+                if not config.enabled:
+                    raise HTTPException(
+                        503,
+                        "La recuperación por correo aún no está disponible. "
+                        "Contacte al administrador.",
+                    )
+                try:
+                    config.validate_enabled(get_settings().app_environment)
+                except ValueError:
+                    raise HTTPException(
+                        503, "La recuperación no está disponible. Inténtelo más tarde."
+                    ) from None
+                await check_limits(
+                    request, for_request=request.url.path.endswith("/forgot-password")
+                )
+                length = request.headers.get("content-length")
+                if length is None:
+                    raise HTTPException(411, "Se requiere Content-Length para este formulario.")
+                if not length.isdecimal() or len(length) > 4 or int(length) > 4096:
+                    raise HTTPException(413, "El formulario excede el tamaño permitido.")
+            except HTTPException as error:
+                return JSONResponse(
+                    {
+                        "error": {
+                            "code": "http_error",
+                            "message": str(error.detail),
+                            "details": None,
+                        }
+                    },
+                    status_code=error.status_code,
+                    headers={"Retry-After": "900"} if error.status_code == 429 else {},
+                )
+            recovery_response: Response = await call_next(request)
+            return recovery_response
         profile = self._profile_for(request)
         limit, window = self._limits_for(request)
         # The profile is part of the key: each budget counts independently.

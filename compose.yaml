@@ -1,3 +1,21 @@
+x-recovery-environment: &recovery-environment
+  PASSWORD_RECOVERY_ENABLED: ${PASSWORD_RECOVERY_ENABLED:-false}
+  PASSWORD_RECOVERY_PUBLIC_URL: ${PASSWORD_RECOVERY_PUBLIC_URL:-}
+  PASSWORD_RECOVERY_ENCRYPTION_KEY: ${PASSWORD_RECOVERY_ENCRYPTION_KEY:-}
+  PASSWORD_RECOVERY_PROXY_KEY: ${PASSWORD_RECOVERY_PROXY_KEY:-}
+  PASSWORD_RECOVERY_SMTP_HOST: ${PASSWORD_RECOVERY_SMTP_HOST:-}
+  PASSWORD_RECOVERY_SMTP_PORT: ${PASSWORD_RECOVERY_SMTP_PORT:-587}
+  PASSWORD_RECOVERY_SMTP_SECURITY: ${PASSWORD_RECOVERY_SMTP_SECURITY:-starttls}
+  PASSWORD_RECOVERY_SMTP_USER: ${PASSWORD_RECOVERY_SMTP_USER:-}
+  PASSWORD_RECOVERY_SMTP_PASSWORD: ${PASSWORD_RECOVERY_SMTP_PASSWORD:-}
+  PASSWORD_RECOVERY_MAIL_FROM: ${PASSWORD_RECOVERY_MAIL_FROM:-}
+  PASSWORD_RECOVERY_TTL_MINUTES: ${PASSWORD_RECOVERY_TTL_MINUTES:-20}
+  PASSWORD_RECOVERY_REQUEST_IP_LIMIT: ${PASSWORD_RECOVERY_REQUEST_IP_LIMIT:-5}
+  PASSWORD_RECOVERY_CONFIRM_IP_LIMIT: ${PASSWORD_RECOVERY_CONFIRM_IP_LIMIT:-10}
+  PASSWORD_RECOVERY_GLOBAL_LIMIT: ${PASSWORD_RECOVERY_GLOBAL_LIMIT:-100}
+  PASSWORD_RECOVERY_RECIPIENT_LIMIT: ${PASSWORD_RECOVERY_RECIPIENT_LIMIT:-3}
+  PASSWORD_RECOVERY_COOLDOWN_SECONDS: ${PASSWORD_RECOVERY_COOLDOWN_SECONDS:-60}
+
 services:
   postgres:
     image: postgres:17.6-alpine
@@ -92,6 +110,7 @@ services:
     build:
       context: ./backend
     environment:
+      <<: *recovery-environment
       WEBSITE_ANALYTICS_ENABLED: ${WEBSITE_ANALYTICS_ENABLED:-true}
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-wabogados}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-wabogados}
@@ -137,6 +156,23 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  recovery-worker:
+    profiles: ["recovery"]
+    image: ${PASSWORD_RECOVERY_IMAGE:-wabogados_v1_master-backend:latest}
+    command: ["python", "-m", "app.cli.recovery_worker", "--loop", "--interval", "10"]
+    environment:
+      <<: *recovery-environment
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-wabogados}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-wabogados}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -225,6 +261,9 @@ services:
     build:
       context: ./frontend
     environment:
+      PASSWORD_RECOVERY_PUBLIC_URL: ${PASSWORD_RECOVERY_PUBLIC_URL:-}
+      PASSWORD_RECOVERY_PROXY_KEY: ${PASSWORD_RECOVERY_PROXY_KEY:-}
+      PASSWORD_RECOVERY_TRUSTED_IP_HEADER: ${PASSWORD_RECOVERY_TRUSTED_IP_HEADER:-}
       WEBSITE_ANALYTICS_ENABLED: ${WEBSITE_ANALYTICS_ENABLED:-true}
       API_INTERNAL_URL: http://backend:8000
     ports:

@@ -13,6 +13,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.router import router
 from app.core.config import Settings, get_settings
+from app.core.recovery_config import get_recovery_settings
 from app.middleware.audit import AuditLogMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.services.storage import initialize_storage
@@ -84,6 +85,7 @@ def allowed_hosts_from_origins(origins: Sequence[str]) -> list[str]:
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     del application
     assert_production_is_safe(settings)
+    get_recovery_settings().validate_enabled(settings.app_environment)
     await initialize_storage(settings)
     retention = asyncio.create_task(retention_loop())
     try:
@@ -127,6 +129,13 @@ async def add_security_headers(request: Request, call_next: Any) -> JSONResponse
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if request.url.path in {
+        "/api/v1/auth/password-recovery",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+    }:
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=()"
     if settings.app_environment == "production":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

@@ -89,6 +89,9 @@ class User(TimestampMixin, SoftDeleteMixin, Base):
     token_version: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0", nullable=False
     )
+    recovery_invalidated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -106,6 +109,61 @@ class User(TimestampMixin, SoftDeleteMixin, Base):
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email})>"
+
+
+class PasswordRecoveryToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    email_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    credential_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("uq_password_reset_live_user", "user_id", unique=True,
+              postgresql_where=text("used_at IS NULL AND revoked_at IS NULL")),
+    )
+
+
+class RecoveryMail(Base):
+    """Durable, encrypted short-lived requests, never raw email/token payloads."""
+
+    __tablename__ = "password_recovery_outbox"
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    token_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("password_reset_tokens.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    encrypted_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    lease_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    leased_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("status IN ('pending','ready','sent','cancelled','failed')",
+                        name="ck_recovery_mail_status"),
+        Index("ix_recovery_mail_due", "status", "next_attempt_at"),
+        Index("ix_recovery_mail_expires", "expires_at"),
+    )
 
 
 class Role(TimestampMixin, Base):
