@@ -4,6 +4,22 @@
 
 Esta sección y `session_summary.md` prevalecen sobre las notas históricas de abajo.
 
+- **Recuperación «Olvidé mi contraseña» (2026-11-15):** implementada y validada,
+  **apagada por defecto** (`PASSWORD_RECOVERY_ENABLED=false`; sin envíos reales).
+  Solicitud anónima en outbox cifrada + worker (perfil compose `recovery`),
+  token de un solo uso con Argon2, revocación de sesiones, respuesta genérica y
+  límites por IP/global/destino **antes** de validar el cuerpo. Pantallas
+  `/olvide-contrasena` y `/restablecer-contrasena`, enlace en el login.
+  Migración `ff60718293a4` (reversible) **solo aplicada en el stack aislado de
+  revisión, no en la base local principal**. **936 tests backend, 85,82 %**,
+  Ruff/mypy, typecheck/build frontend y E2E: recovery 3, públicos 19, layout 66+1
+  skip, reset 2, private 4 — todos verdes contra el artefacto final
+  `wabogados-password-recovery:local` + frontend reconstruido. Nada desplegado al
+  stack local principal. Guía `docs/RECUPERACION_CONTRASENA.md`. **Sin commit/push.**
+  Pendiente fase 6: SMTP, remitente, origen HTTPS y aprobación de límites.
+  Además se corrigió `frontend/e2e/admin-portal.spec.ts`, obsoleto desde `de6d18a`
+  (heading «Auditoría», módulos nuevos, contador móvil derivado de `ADMIN_MODULES`).
+
 - **Contraseñas desde Usuarios (2026-11-15):** acción **Restablecer contraseña**
   activa localmente, permiso dedicado, confirmación, revocación de refrescos/JWT
   anteriores y auditoría atómica. No permite auto-reset ni acceso de un

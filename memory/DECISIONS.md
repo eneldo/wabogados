@@ -761,6 +761,30 @@ Dos decisiones que parecen detalles y no lo son:
 respaldo corrupto y descubrirlo después deja una copia rota al otro lado que parece
 una copia de seguridad.
 
+## ADR-066 — Recuperación de contraseña fuera del tiempo de respuesta, apagada por defecto
+
+**Fecha:** 2026-11-15. **Motivo:** implementar «Olvidé mi contraseña» autorizado
+por el usuario, con cuentas y buzón sintéticos, sin enviar correos reales hasta
+que existan proveedor SMTP, remitente y origen HTTPS.
+
+**Decisión:** la solicitud anónima entra en una **outbox cifrada** y sale del
+tiempo de respuesta: un worker (`app.cli.recovery_worker`, perfil compose
+`recovery`) resuelve elegibilidad y envío con SMTP. El endpoint responde siempre
+igual (202 genérico) para no enumerar cuentas; el token es opaco, de un solo uso,
+caducado con Argon2 en base y con revocación de sesiones al consumirse.
+
+Los límites (IP/global/destino) se cuentan en el middleware **antes** de validar
+el JSON, con `Content-Length` obligatorio y cuerpo ≤4 KiB (411/413), de modo que
+un cuerpo malformado no escribe sin coste. `PASSWORD_RECOVERY_*` arranca
+**apagado**: sin configuración, `/olvide-contrasena` muestra «no disponible» y los
+endpoints responden 503.
+
+**Consecuencias:** hasta la fase 6 no hay envíos reales; activar exige proveedor,
+remitente autorizado, `PASSWORD_RECOVERY_PUBLIC_URL` en HTTPS y aprobación de
+elegibilidad/límites. La migración `ff60718293a4` (tokens + outbox +
+`recovery_invalidated_at`) es reversible y se aplica con respaldo antes de
+desplegar. Detalle y operación: `docs/RECUPERACION_CONTRASENA.md`.
+
 ## ADR-065 — Restablecimiento administrativo con versión de credenciales
 
 **Fecha:** 2026-11-15. **Motivo:** continuar el restablecimiento desde Usuarios;

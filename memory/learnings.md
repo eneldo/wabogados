@@ -1,5 +1,29 @@
 <!-- Nuevos aprendizajes debajo de esta línea -->
 
+- **2026-11-15 — La barrera `private` necesita datos, no solo una cuenta:**
+  **Contexto:** `admin-portal.spec.ts` exige un enlace a `/evidencias` en
+  `/expedientes`; con una cuenta sintética sin casos el recorrido falla aunque
+  el código esté intacto, y el error parece una regresión.
+  **Aprendizaje:** Distinguir fallo de datos de fallo de código: sembrar
+  `Client` + `Case` por API en el stack aislado (cliente activo, caso con
+  `client_id`, permisos de administrador) antes de concluir nada. El heading
+  obsoleto y el contador fijo del menú móvil sí eran código desactualizado.
+  **Aplicación futura:** al ejecutar `--project=private`, comprobar primero que
+  el stack tiene expedientes; el resto de barreras (públicos, layout, reset,
+  recuperación) no requieren datos sembrados.
+
+- **2026-11-15 — Una pantalla renombrada deja obsoleto su E2E hasta que alguien lo ejecuta:**
+  **Contexto:** El commit `de6d18a` convirtió `/admin/seguridad` en «Auditoría»,
+  añadió `/admin/usuarios`, `/admin/roles`, `/admin/notificaciones` y
+  `/admin/analisis`, pero `admin-portal.spec.ts` seguía esperando «Usuarios» y
+  contaba 13 enlaces fijos en el menú móvil. Las sesiones anteriores solo
+  corrieron reset y públicos, así que el fallo quedó oculto.
+  **Aprendizaje:** Al renombrar o añadir módulos, actualizar el crawl de E2E en el
+  mismo commit; los contadores fijos de navegación envejecen con cada alta, así
+  que derivarlos de la fuente única (`ADMIN_MODULES`) como ya hacía el aside.
+  **Aplicación futura:** Ejecutar también `--project=private` (y layout) en cada
+  entrega que toque pantallas de administración, no solo las pruebas nuevas.
+
 - **2026-11-15 — Invalidar credenciales exige serializar su emisión, no solo revocar filas:**
   **Contexto:** El reset administrativo revocaba refrescos pero un JWT de acceso
   seguía válido hasta caducar; un login/refresh concurrente podía emitir después

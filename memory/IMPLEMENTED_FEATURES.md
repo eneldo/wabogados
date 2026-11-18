@@ -1,5 +1,18 @@
 # IMPLEMENTED FEATURES
 
+## 2026-11-15 — «Olvidé mi contraseña» (implementado, apagado)
+
+- Recuperación por correo: solicitud anónima con respuesta genérica, outbox
+  cifrada + worker fuera del tiempo de respuesta, token opaco de un uso con
+  Argon2 y revocación de sesiones, límites por IP/global/destino antes de
+  validar el cuerpo, pantallas `/olvide-contrasena` y `/restablecer-contrasena`
+  y enlace en el login. Flag `PASSWORD_RECOVERY_ENABLED=false` por defecto.
+- Migración `ff60718293a4` (reversible); **936 tests backend (85,82 %)**,
+  Ruff/mypy, typecheck/build frontend; E2E aislados: recuperación 3, públicos 19,
+  layout 66+1 skip, reset 2 y admin 4. Sin envíos reales ni despliegue local.
+- Pendiente fase 6: SMTP, remitente, origen HTTPS y aprobación de límites.
+  Guía `../docs/RECUPERACION_CONTRASENA.md`; ADR-066.
+
 ## 2026-11-15 — Contraseñas desde Usuarios
 
 - Restablecimiento administrativo con confirmación, permiso dedicado,

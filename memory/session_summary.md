@@ -1,5 +1,132 @@
 # Última sesión
 
+## 2026-11-17 — Plan de producción: fases 0 y 1 ejecutadas
+
+- Autorización del usuario: iniciar fase 0 y **commitear/pushear cada fase
+  terminada**. Decisión [FIRMA] registrada: el parche `AI_CONFIDENTIALITY`
+  (`legal_ai.py` + `config.py`) se **aparta a rama**
+  `feature/ai-confidentiality` (`e640e3d`, ya en el remoto); nada descartado,
+  `main` queda sin él.
+- **Fase 0 (gates) completada — commit `4bfbaf0` en `main`:**
+  - `PUT /media/{id}/content`: cap restaurado midiendo con `seek/tell`
+    **antes** de llamar al servicio (un 413 no puede tocar el objeto
+    reemplazado; el test exige `has_file is False`), detección duplicada
+    rota eliminada, kwarg `mime_type` inexistente fuera,
+    `get_running_loop()`.
+  - `attach_file_stream`: el peek del tipo **truncaba el objeto en el
+    primer chunk** (los bytes consumidos no se devolvían) — resuelto con
+    `_with_prefix()`; el poster de imágenes se genera releyendo el objeto
+    recién escrito (antes ambas ramas hacían `_drop_thumbnail`: la
+    biblioteca habría perdido todas las miniaturas).
+  - `backend/Dockerfile`: continuación `RUN` reparada (faltaba `\`;
+    `unknown instruction: pg_dump` rompía cualquier build completo).
+  - **Gates en verde sobre el árbol completo:** `ruff` limpio, `mypy`
+    limpio (194 archivos), **936/936 pruebas, cobertura 85,87 %**,
+    `docker build --check` sin errores; frontend sin cambios desde su
+    `tsc`/ESLint/`next build` verdes. `docker compose build backend`
+    completo lanzado para validar la imagen.
+- **Fase 1 (versionado):** tres commits — `feat(auth)` recuperación de
+  contraseña (backend+frontend+migración+docs+CHANGELOG), `test(e2e)`
+  `admin-portal.spec.ts` y `docs` (informe, plan, memoria) — push conjunto
+  a `origin/main`, CI a verificar y **tag `v1.0.0-rc1` tras CI verde**
+  (el rollback de `DEPLOY.md` §5 asume tags).
+
+## 2026-11-17 — Plan completo para producción entregado
+
+- Solicitud: «Entrega un plan completo para dejar listo para Producción».
+- Entregado `docs/PLAN_PRODUCCION.md`: 8 fases (0 gates del árbol → 1
+  versionado/tag → 2 BD+stack → 3 decisiones de la firma en paralelo →
+  4 infraestructura/HTTPS → 5 respaldos → 6 SMTP/recuperación → 7 aceptación →
+  8 operación), con tareas marcadas **[FIRMA]**/**[AGENTE]**, criterios de
+  aceptación por fase, orden de dependencias y checklist global de salida.
+- Decisiones clave que quedan para la firma (10 en la fase 3): dominio,
+  TLS/proxy, bucket S3 externo + Object Lock, destino del respaldo remoto,
+  SMTP, `AI_CONFIDENTIALITY`, aviso de privacidad, editorial, zona horaria y
+  confirmación por correo de solicitudes.
+- Recomendación para el punto 0.1: intentar el arreglo mínimo de
+  `media.py` (importar los tres nombres, quitar `mime_type=` — el servicio ya
+  detecta el tipo — y quitar `asyncio` sin uso); si `test_media.py` no queda
+  en verde en esa sesión, apartar `media.py`/`services/media.py` a rama
+  `feature/media-streaming` **sin descartar**. Igual criterio para el parche
+  `legal_ai.py` (`AI_CONFIDENTIALITY`).
+- Sin ejecución de fases todavía: el plan queda pendiente de aprobación.
+
+## 2026-11-17 — Informe de preparación para producción
+
+- Solicitud: «Entrega un informe para ver si ya está listo para producción».
+- Entregado `docs/INFORME_PRODUCCION_2026-11-17.md`: **veredicto NO LISTO**.
+- Evidencia ejecutada hoy: CI verde (#7 sobre `de6d18a`); `ruff` y `mypy`
+  **rojos** con 4 errores cada uno y `pytest` con **17 fallos (todas
+  `test_media.py`, `NameError`) sobre 936** — árbol de trabajo, no la release
+  validada; cobertura 84,74 %. Frontend `tsc`/ESLint/`next build` verdes.
+  `docker build --check` confirma el `Dockerfile` roto (línea 36,
+  `unknown instruction: pg_dump`: falta `\` en la línea 35).
+- Causa raíz: el refactor pendiente de multimedia dejó `app/api/v1/media.py`
+  sin importar `HEADER_BYTES`/`detect_media_type`/`MediaValidationError` (el
+  servicio sí los exporta) y llama `attach_file_stream(..., mime_type=...)`,
+  kwarg que la firma no tiene. Trabajo sin validar y fuera de las releases
+  desplegadas; **no descartarlo**, decidir su destino con el usuario.
+- Otros hallazgos: stack local principal caído (~46 h; `evidence-worker` en
+  crash loop por DNS de postgres), último respaldo local **2026-10-22**,
+  `BACKUP_REMOTE_ENABLED=false`, sin nginx/HTTPS/dominio, SMTP sin configurar
+  (recuperación apagada), migración `ff60718293a4` sin aplicar en la base
+  local, entrega de recuperación **sin commit/push** (30 modificados + 21
+  nuevos). Aviso de privacidad ya con responsable/canal/derechos en el
+  diálogo, pero `NEXT_STEPS` aún lo lista pendiente de aprobación formal.
+- Sin cambios de código de producto; solo este informe y la memoria.
+
+## 2026-11-15 — «Olvidé mi contraseña» implementado y validado (sin activar)
+
+- Solicitud: «Autorizado ejecutalo» + «hola, continua» → implementar el plan
+  `docs/PLAN_OLVIDE_CONTRASENA.md` con cuentas/correo sintéticos y buzón SMTP
+  aislado; **el envío real queda apagado** hasta configurar SMTP, remitente y
+  origen HTTPS.
+- Implementación completa: permiso/recovery `token_version`, migración
+  `ff60718293a4` (tokens + outbox cifrada + `users.recovery_invalidated_at`,
+  reversible), endpoint anónimo `/auth/forgot-password` con respuesta genérica,
+  outbox cifrado + worker `app.cli.recovery_worker` (perfil compose `recovery`),
+  consumo atómico con Argon2 y revocación, límites por IP/global/destino en
+  middleware **antes** de validar JSON (411/413/429), flujo `/olvide-contrasena`
+  y `/restablecer-contrasena`, enlace de login y `PASSWORD_RECOVERY_*` apagados
+  por defecto en `compose.yaml`/`.env.example`.
+- **Verificado:** **936 pruebas backend, 85,82 %** cobertura, Ruff/mypy limpios
+  (153 archivos), migración downgrade/upgrade en base efímera; typecheck frontend
+  limpio, lint con el único warning preexistente del portal, build OK.
+- **E2E en verde contra el artefacto final** (stack aislado con base tmpfs,
+  imagen `wabogados-password-recovery:local` + frontend reconstruido):
+  `password-recovery` 3, `public` 19, `layout` 66 + 1 skip, `password-reset` 2 y
+  `private` 4 (para `private` hizo falta sembrar `Client` + `Case` por API: sin
+  expedientes el recorrido falla por datos, no por código). Siembras efímeras en
+  `.tmp/*-auth.json` (0600); nada desplegado al stack local principal.
+- **Fallo preexistente corregido:** `frontend/e2e/admin-portal.spec.ts` quedó
+  desactualizado en `de6d18a` (esperaba «Usuarios» en `/admin/seguridad`, que
+  ahora es «Auditoría»; no listaba los módulos nuevos; contaba 13 enlaces fijos
+  en el menú móvil). Se actualizó el listado con los headings verificados y el
+  contador se deriva de `ADMIN_MODULES`. Sin relación con la recuperación.
+- Documentación: `docs/RECUPERACION_CONTRASENA.md`, cabecera del plan en
+  «implementada», entrada en `CHANGELOG.md`. **Sin commit/push** (pendiente de
+  autorización); pendientes ajenos intactos y fuera del alcance.
+- **Fase 6 pendiente:** proveedor SMTP, remitente autorizado, origen público
+  HTTPS y aprobación de elegibilidad/límites antes de activar envíos reales.
+- Decisión del usuario al cerrar: **esperar a los datos de correo**; la entrega
+  queda sin commit/push y sin despliegue al stack local. El stack aislado de
+  revisión sigue levantado para inspección (`http://127.0.0.1:3013`, credenciales
+  en `.tmp/e2e-layout-credentials.json`, 0600) y se retira con
+  `docker compose -p wabogados-recovery-review -f .tmp/recovery-review.yaml down`.
+
+## 2026-11-15 — Plan de «Olvidé mi contraseña» entregado
+
+- Solicitud: entregar plan, **sin implementar ni activar**. Documento:
+  `docs/PLAN_OLVIDE_CONTRASENA.md`, fases 0–6, requisitos y aceptación.
+- Propuesta: correo verificado/cuenta activa, token opaco de 20 minutos y un uso,
+  respuesta genérica, límites, outbox cifrada/worker, consumo atómico con Argon2,
+  `token_version` y revocación; pantallas accesibles y pruebas aisladas/concurrencia.
+- Pendientes de aprobación: proveedor/remitente/URL HTTPS, elegibilidad y límites;
+  después implementación, pruebas y autorización de activación. No se envió correo,
+  no se tocaron cuentas, migraciones ni código. Sin commit/push de este plan.
+- Publicación anterior confirmada: `de6d18a` en `origin/main`. Pendientes ajenos
+  de multimedia/IA/Dockerfile y auditoría siguen intactos y fuera del commit.
+
 ## 2026-11-15 — Publicación autorizada de Usuarios/Roles y contraseñas
 
 - El usuario solicita commit y push de la entrega nueva y explicación del flujo

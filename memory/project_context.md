@@ -17,8 +17,9 @@ generación asistida sigue pendiente de proveedor).
 - Compose define PostgreSQL, Redis, backend, worker de evidencias, ClamAV y
   frontend. MinIO y el destino provisional están comentados; el almacenamiento
   local es el activo y el destino S3 externo sigue pendiente de la firma.
-- Tests Docker aislados: **895 pruebas y 85,56 % de cobertura** en la release
-  de restablecimiento administrativo (2026-11-15), HEAD más lista revisada del manifest.
+- Tests Docker aislados: **936 pruebas y 85,82 % de cobertura** en la release de
+  recuperación de contraseña (2026-11-15), HEAD más lista revisada del manifest
+  (la release previa de restablecimiento administrativo quedó en 895 y 85,56 %).
   El árbol conserva cambios anteriores de multimedia/IA sin validar y excluidos
   de la imagen desplegada; no extrapolar este resultado a esos pendientes.
 - Frontend: TypeScript/build correctos; ESLint sin errores, con un warning previo
@@ -30,7 +31,12 @@ generación asistida sigue pendiente de proveedor).
 - Usuarios: restablecimiento administrativo con permiso `users:reset_password`,
   confirmación, Argon2, revocación de refrescos y versión de credenciales para
   invalidar JWT anteriores; pruebas de concurrencia con conexiones reales (ADR-065).
-  No modifica claves reales al desplegar. Cambio propio/recuperación por correo pendientes.
+  No modifica claves reales al desplegar.
+- Recuperación «Olvidé mi contraseña»: **implementada y apagada por defecto**
+  (solicitud anónima con respuesta genérica, outbox cifrada + worker fuera del
+  tiempo de respuesta, token de un uso con Argon2, límites antes de validar el
+  cuerpo, ADR-066). Pendiente de activación: SMTP, remitente, origen HTTPS y
+  aprobación de límites; sin envíos reales ni despliegue local.
 - Respaldos: los objetos se verifican por digest contra `MANIFEST.sha256` antes
   de la copia externa (ADR-062).
 

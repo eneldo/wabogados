@@ -2,10 +2,16 @@
 
 ## Prioridades vigentes — actualizado 2026-11-15
 
-1. Próxima fase indicada por el usuario: **«Olvidé mi contraseña»**, a tratar
-   después de revisar el reset administrativo ya activo. Requiere proveedor de
-   correo, tokens de un solo uso con caducidad, límites y no enumeración de cuentas.
-   No implementado ni activado todavía; cambio propio también sigue separado.
+1. **«Olvidé mi contraseña»: implementada y validada, pendiente activación**
+   (2026-11-15). Todo el código, migración `ff60718293a4`, worker, pantallas y
+   pruebas están listos y verificados (936 tests, 85,82 %; E2E recovery/públicos/
+   layout/reset/private en verde), pero **apagado por defecto**: no hay envíos
+   reales. Para activar (fase 6) hace falta: proveedor SMTP, remitente autorizado,
+   origen público HTTPS (`PASSWORD_RECOVERY_PUBLIC_URL`) y aprobación de
+   elegibilidad/límites. Guía `docs/RECUPERACION_CONTRASENA.md`. La migración
+   **no está aplicada en la base local principal**; si se despliega, respaldo +
+   `alembic upgrade head` con la imagen selectiva `wabogados-password-recovery:local`.
+   Sin commit/push de esta entrega: pedir autorización antes de publicar.
 2. **Usuarios/Roles y restablecimiento administrativo**: commit/push autorizados
    por el usuario (consultar Git para el resultado final); ya
    persistidos en imagen selectiva reproducible, no dependen del hot-patch previo.
