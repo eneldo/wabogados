@@ -124,6 +124,11 @@ class Settings(BaseSettings):
     ai_api_key: str | None = None
     ai_model: str = "gpt-4o-mini"
     ai_max_tokens: int = 800
+    # Política de confidencialidad al enviar contexto al proveedor de IA.
+    # - NONE: enviar todo el contexto tal cual (riesgo de fuga de datos).
+    # - ANONYMIZED: ocultar IDs y referencias identificables (case_id, client_id, etc.).
+    # - FULL: bloquear la generación hasta que el humano revise el contexto.
+    ai_confidentiality: str = "NONE"  # "NONE" | "ANONYMIZED" | "FULL"
 
     # Off site backup target. A backup that stays on the same host as the data it
     # protects survives nothing, so this is expected to be configured in

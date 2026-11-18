@@ -461,6 +461,24 @@ async def generate_draft(prompt: str, context: str = "") -> str:
     from app.core.config import get_settings
 
     settings = get_settings()
+
+    # --- Confidencialidad de datos hacia el proveedor ---
+    # Esta es una decisión de la firma, no un bug de código. Si no hay política
+    # configurada, se asume NONE (todo se envía tal cual). La pantalla y el .env
+    # documentan las tres opciones.
+    confidentiality = getattr(settings, "ai_confidentiality", "NONE") or "NONE"
+    if confidentiality not in ("NONE", "ANONYMIZED", "FULL"):
+        raise RuntimeError("AI_CONFIDENTIALITY inválido")
+
+    # Filtrado minimal: quitar IDs y referencias que identifiquen al cliente o
+    # al expediente cuando la política así lo requiere. Esto es un parche mientras
+    # la firma decide la política definitiva.
+    if confidentiality == "ANONYMIZED":
+        # Reemplazar IDs y referencias que identifiquen al cliente o expediente
+        context = re.sub(r"\bcase/[a-f0-9-]+\b", "[ID_case_ocultado]", context)
+        context = re.sub(r"\bclient/[a-f0-9-]+\b", "[ID_client_ocultado]", context)
+        context = re.sub(r"\buser/[a-f0-9-]+\b", "[ID_user_ocultado]", context)
+
     if not settings.ai_provider or not settings.ai_api_key:
         raise RuntimeError("Proveedor de IA no configurado")
 
