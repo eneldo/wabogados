@@ -26,6 +26,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # gitleaks-action escanea `commits[0]^..commits[last]` en pushes de
+          # varios commits: con el shallow clone por defecto (depth 1) ese
+          # revision no existe, git log falla y la acción sale con exit 1
+          # («Unexpected exit code [1]», fallo real del 2026-11-17). Historial
+          # completo, como exige la acción.
+          fetch-depth: 0
 
       - name: Secrets scan
         # MASTER_PROMPT section 48 forbids hardcoded secrets. A committed
